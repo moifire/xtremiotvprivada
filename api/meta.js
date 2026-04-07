@@ -12,5 +12,5 @@ module.exports = async (req, res) => {
   const db = await getCatalog();
   const item = db.items.find(x => x.id === id && (!type || x.type === type));
   if (!item) return sendJson(res, 404, { error: 'Meta no encontrada' });
-  return sendJson(res, 200, { meta: makeMeta(item) });
+  return sendJson(res, 200, { meta: makeMeta(item, db) });
 };

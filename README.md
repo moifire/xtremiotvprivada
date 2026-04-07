@@ -41,3 +41,9 @@ Sin token, el addon responde 401.
 - Botón para vaciar toda la base de datos
 - Separación de canales TV por categorías en Stremio usando el group-title de la M3U o la categoría manual
 - Campo categoría en el panel admin
+
+## Novedades v3
+- Ocultar categorías TV desde panel
+- Ordenar categorías TV desde panel
+- Logo y fondo por defecto configurables
+- Las series mantienen la ficha principal de la serie y los capítulos se muestran al entrar en la meta de la serie

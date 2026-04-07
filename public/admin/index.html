@@ -99,6 +99,18 @@
         </div>
 
         <div class="sec">
+          <h3 style="margin-top:0">Opciones de catálogos</h3>
+          <label>Categorías ocultas (coma)</label>
+          <input id="hiddenCategories" placeholder="Adult, XXX, Test">
+          <label style="margin-top:12px">Orden de categorías TV (coma)</label>
+          <input id="categoryOrder" placeholder="Deportes, Shows, Noticias, Infantil">
+          <label style="margin-top:12px">Logo por defecto</label>
+          <input id="defaultPoster" placeholder="https://...">
+          <label style="margin-top:12px">Background por defecto</label>
+          <input id="defaultBackground" placeholder="https://...">
+        </div>
+
+        <div class="sec">
           <h3 style="margin-top:0">Editor</h3>
           <label>Tipo</label>
           <select id="type">
@@ -130,7 +142,7 @@
             <button class="btn btn-primary" onclick="saveItem()">Guardar en memoria</button>
             <button class="btn" onclick="resetForm()">Limpiar</button>
           </div>
-          <div class="status" style="margin-top:10px">Puedes separar la TV por categorías como Deportes, Shows, Noticias, Infantil, etc. Después pulsa “Guardar en DB”.</div>
+          <div class="status" style="margin-top:10px">Puedes separar la TV por categorías como Deportes, Shows, Noticias, Infantil, etc. Las series se mostrarán primero como portada de serie y los capítulos al entrar en la ficha. Después pulsa “Guardar en DB”.</div>
         </div>
 
         <div class="sec">
@@ -216,6 +228,13 @@
       } catch {}
     }
 
+    function bindSettings() {
+      document.getElementById('hiddenCategories').value = (db.settings?.hiddenCategories || []).join(', ');
+      document.getElementById('categoryOrder').value = (db.settings?.categoryOrder || []).join(', ');
+      document.getElementById('defaultPoster').value = db.settings?.defaultPoster || '';
+      document.getElementById('defaultBackground').value = db.settings?.defaultBackground || '';
+    }
+
     function bindBrand() {
       document.getElementById('brandName').value = db.addonsBrand?.name || '';
       document.getElementById('brandDesc').value = db.addonsBrand?.description || '';
@@ -233,6 +252,7 @@
       }
       db = json;
       bindBrand();
+      bindSettings();
       render();
       setStatus('Catálogo cargado.');
     }
@@ -252,6 +272,7 @@
       }
       db = json.catalog;
       bindBrand();
+      bindSettings();
       render();
       setStatus('Base de datos vaciada correctamente.');
     }
@@ -381,10 +402,10 @@ function saveBrandToDbObj() {
       }
       items.innerHTML = db.items.map(item => `
         <div class="card">
-          <img class="poster" src="${item.poster || 'https://placehold.co/600x900/png?text=No+Image'}" alt="">
+          <img class="poster" src="${item.poster || db.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Image'}" alt="">
           <div class="content">
             <div class="name">${item.name || ''}</div>
-            <div class="meta">${item.type} · ${item.year || ''}</div>
+            <div class="meta">${item.type} · ${item.year || ''}${item.type === 'series' ? ' · portada de serie' : ''}</div>
             <div class="meta">${item.category ? ('Categoría: ' + item.category + ' · ') : ''}${item.description || ''}</div>
             <div class="meta" style="margin-top:10px">${(item.genres || []).map(g => `<span class="pill">${g}</span>`).join(' ')}</div>
             <div class="row" style="margin-top:12px">

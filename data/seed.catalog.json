@@ -28,5 +28,18 @@
         }
       ]
     }
-  ]
+  ],
+  "settings": {
+    "hiddenCategories": [],
+    "categoryOrder": [
+      "Deportes",
+      "Shows",
+      "Noticias",
+      "Infantil",
+      "Películas",
+      "Series"
+    ],
+    "defaultPoster": "https://placehold.co/600x900/png?text=No+Logo",
+    "defaultBackground": "https://placehold.co/1280x720/png?text=MoiTube"
+  }
 }

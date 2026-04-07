@@ -128,6 +128,12 @@ function ensureCatalogShape(db) {
     tv: 't_' + Math.random().toString(36).slice(2, 8)
   };
   db.items = Array.isArray(db.items) ? db.items : [];
+  db.settings = db.settings || {
+    hiddenCategories: [],
+    categoryOrder: [],
+    defaultPoster: 'https://placehold.co/600x900/png?text=No+Logo',
+    defaultBackground: 'https://placehold.co/1280x720/png?text=MoiTube'
+  };
   return db;
 }
 
@@ -148,42 +154,57 @@ function buildCatalogsFromDb(db) {
     { type: 'tv', id: db.catalogIds.tv, name: 'TV' }
   ];
 
+  const hidden = new Set((db.settings?.hiddenCategories || []).map(x => String(x).trim().toLowerCase()).filter(Boolean));
   const categories = Array.from(new Set(
     (db.items || [])
       .filter(x => x.type === 'tv')
       .map(x => String(x.category || x.description || (x.genres && x.genres[0]) || 'General').trim())
       .filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b, 'es'));
+  ));
 
-  for (const cat of categories) {
-    catalogs.push({
-      type: 'tv',
-      id: 'tvcat_' + slugCategoryName(cat),
-      name: 'TV · ' + cat,
-      extra: [{ name: 'search' }]
+  const preferredOrder = db.settings?.categoryOrder || [];
+  const weight = new Map(preferredOrder.map((name, idx) => [String(name).trim().toLowerCase(), idx]));
+
+  categories
+    .filter(cat => !hidden.has(String(cat).toLowerCase()))
+    .sort((a, b) => {
+      const aw = weight.has(String(a).toLowerCase()) ? weight.get(String(a).toLowerCase()) : 9999;
+      const bw = weight.has(String(b).toLowerCase()) ? weight.get(String(b).toLowerCase()) : 9999;
+      if (aw !== bw) return aw - bw;
+      return a.localeCompare(b, 'es');
+    })
+    .forEach(cat => {
+      catalogs.push({
+        type: 'tv',
+        id: 'tvcat_' + slugCategoryName(cat),
+        name: 'TV · ' + cat,
+        extra: [{ name: 'search' }]
+      });
     });
-  }
 
   return catalogs;
 }
 
-function makeMeta(item) {
+function makeMeta(item, db) {
+  const defaultPoster = db?.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Logo';
+  const defaultBackground = db?.settings?.defaultBackground || 'https://placehold.co/1280x720/png?text=MoiTube';
   const meta = {
     id: item.id,
     type: item.type,
     name: item.name,
     description: item.description || '',
-    poster: item.poster || '',
-    background: item.background || '',
+    poster: item.poster || defaultPoster,
+    background: item.background || defaultBackground,
     genres: item.genres || [],
     year: item.year || undefined
   };
   if (item.type === 'series' && Array.isArray(item.videos)) {
     meta.videos = item.videos.map(v => ({
       id: v.id,
-      title: v.title,
+      title: v.title || ('T' + v.season + ' E' + v.episode),
       season: v.season,
-      episode: v.episode
+      episode: v.episode,
+      released: v.released
     }));
   }
   return meta;
