@@ -1,5 +1,5 @@
 
-const { sendJson, handleOptions, requireAddonToken, makeMeta, parseUrl } = require('./lib/common');
+const { sendJson, handleOptions, requireAddonToken, makeMeta, parseUrl, normalizeCategoryLabel } = require('./lib/common');
 const { getCatalog } = require('./lib/db');
 
 module.exports = async (req, res) => {
@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
   if (type === 'tv' && catalogId && String(catalogId).startsWith('tvcat_')) {
     const categorySlug = String(catalogId).slice(6);
     items = items.filter(x => {
-      const cat = String(x.category || x.description || (x.genres && x.genres[0]) || 'General').trim();
+      const cat = normalizeCategoryLabel(x.category || x.description || (x.genres && x.genres[0]) || 'General', db);
       const hiddenCat = hidden.has(String(cat).toLowerCase());
       const slug = String(cat)
         .toLowerCase()
@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
     });
   } else if (type === 'tv') {
     items = items.filter(x => {
-      const cat = String(x.category || x.description || (x.genres && x.genres[0]) || 'General').trim();
+      const cat = normalizeCategoryLabel(x.category || x.description || (x.genres && x.genres[0]) || 'General', db);
       return !hidden.has(String(cat).toLowerCase());
     });
   }

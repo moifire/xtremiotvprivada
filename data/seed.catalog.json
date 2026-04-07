@@ -40,6 +40,17 @@
       "Series"
     ],
     "defaultPoster": "https://placehold.co/600x900/png?text=No+Logo",
-    "defaultBackground": "https://placehold.co/1280x720/png?text=MoiTube"
+    "defaultBackground": "https://placehold.co/1280x720/png?text=MoiTube",
+    "categoryAliases": {
+      "sports": "Deportes",
+      "deporte": "Deportes",
+      "sport": "Deportes",
+      "showtime": "Shows",
+      "shows": "Shows",
+      "news": "Noticias",
+      "noticias": "Noticias",
+      "kids": "Infantil",
+      "anime": "Infantil"
+    }
   }
 }

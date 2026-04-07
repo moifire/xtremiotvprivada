@@ -47,3 +47,8 @@ Sin token, el addon responde 401.
 - Ordenar categorías TV desde panel
 - Logo y fondo por defecto configurables
 - Las series mantienen la ficha principal de la serie y los capítulos se muestran al entrar en la meta de la serie
+
+## Novedades v4
+- Renombrado automático de categorías
+- Fusión automática de grupos parecidos
+- Alias configurables desde el panel admin usando formato origen=destino

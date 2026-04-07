@@ -108,6 +108,8 @@
           <input id="defaultPoster" placeholder="https://...">
           <label style="margin-top:12px">Background por defecto</label>
           <input id="defaultBackground" placeholder="https://...">
+          <label style="margin-top:12px">Alias automáticos de categorías</label>
+          <textarea id="categoryAliases" placeholder="sports=Deportes&#10;deporte=Deportes&#10;showtime=Shows&#10;news=Noticias"></textarea>
         </div>
 
         <div class="sec">
@@ -233,6 +235,8 @@
       document.getElementById('categoryOrder').value = (db.settings?.categoryOrder || []).join(', ');
       document.getElementById('defaultPoster').value = db.settings?.defaultPoster || '';
       document.getElementById('defaultBackground').value = db.settings?.defaultBackground || '';
+      const aliases = db.settings?.categoryAliases || {};
+      document.getElementById('categoryAliases').value = Object.entries(aliases).map(([k,v]) => `${k}=${v}`).join('\n');
     }
 
     function bindBrand() {

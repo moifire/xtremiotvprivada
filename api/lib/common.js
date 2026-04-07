@@ -131,9 +131,11 @@ function ensureCatalogShape(db) {
   db.settings = db.settings || {
     hiddenCategories: [],
     categoryOrder: [],
+    categoryAliases: {},
     defaultPoster: 'https://placehold.co/600x900/png?text=No+Logo',
     defaultBackground: 'https://placehold.co/1280x720/png?text=MoiTube'
   };
+  db.settings.categoryAliases = db.settings.categoryAliases || {};
   return db;
 }
 
@@ -147,6 +149,45 @@ function slugCategoryName(name) {
     .slice(0, 40) || 'general';
 }
 
+function titleCaseWords(str) {
+  return String(str || '')
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function normalizeCategoryLabel(name, db) {
+  const raw = String(name || 'General').trim();
+  const normalized = raw
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9+ ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const aliases = db?.settings?.categoryAliases || {};
+  if (aliases[normalized]) return aliases[normalized];
+
+  const rules = [
+    [/sport|deporte|futbol|football|soccer|basket|nba|tennis|ufc|boxing|formula 1|motogp|golf/, 'Deportes'],
+    [/show|entretenimiento|variety|reality|talent/, 'Shows'],
+    [/news|noticia|informacion|informativo|actualidad/, 'Noticias'],
+    [/movie|cine|pelicula|film/, 'Películas'],
+    [/series|serie|drama|thriller/, 'Series'],
+    [/kids|child|infantil|cartoon|anime|disney/, 'Infantil'],
+    [/music|musica|radio|concert/, 'Música'],
+    [/docu|documental|history|natura|science/, 'Documentales'],
+    [/adult|xxx|porno/, 'Adult'],
+  ];
+
+  for (const [regex, label] of rules) {
+    if (regex.test(normalized)) return label;
+  }
+
+  return titleCaseWords(raw) || 'General';
+}
+
 function buildCatalogsFromDb(db) {
   const catalogs = [
     { type: 'movie', id: db.catalogIds.movie, name: 'Películas' },
@@ -158,7 +199,7 @@ function buildCatalogsFromDb(db) {
   const categories = Array.from(new Set(
     (db.items || [])
       .filter(x => x.type === 'tv')
-      .map(x => String(x.category || x.description || (x.genres && x.genres[0]) || 'General').trim())
+      .map(x => normalizeCategoryLabel(x.category || x.description || (x.genres && x.genres[0]) || 'General', db))
       .filter(Boolean)
   ));
 
@@ -243,7 +284,7 @@ function parseM3U(text) {
     items.push({
       id: 'tv-' + slug(displayName),
       type: 'tv',
-      category: normalizedGroup,
+      category: normalizeCategoryLabel(normalizedGroup, { settings: { categoryAliases: {} } }),
       name: displayName,
       description: normalizedGroup,
       poster: logo,
@@ -270,5 +311,6 @@ module.exports = {
   ensureCatalogShape,
   makeMeta,
   parseM3U,
-  buildCatalogsFromDb
+  buildCatalogsFromDb,
+  normalizeCategoryLabel
 };
