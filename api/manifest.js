@@ -1,5 +1,5 @@
 
-const { sendJson, handleOptions, requireAddonToken } = require('./lib/common');
+const { sendJson, handleOptions, requireAddonToken, buildCatalogsFromDb } = require('./lib/common');
 const { getCatalog } = require('./lib/db');
 
 module.exports = async (req, res) => {
@@ -15,11 +15,7 @@ module.exports = async (req, res) => {
     logo: db.addonsBrand?.logo || '',
     resources: ['catalog', 'meta', 'stream'],
     types: ['movie', 'series', 'tv'],
-    catalogs: [
-      { type: 'movie', id: db.catalogIds.movie, name: 'Películas' },
-      { type: 'series', id: db.catalogIds.series, name: 'Series' },
-      { type: 'tv', id: db.catalogIds.tv, name: 'TV en directo' }
-    ],
+    catalogs: buildCatalogsFromDb(db),
     behaviorHints: { configurable: false, configurationRequired: false }
   };
   return sendJson(res, 200, manifest);

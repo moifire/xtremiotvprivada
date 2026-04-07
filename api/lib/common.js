@@ -131,6 +131,42 @@ function ensureCatalogShape(db) {
   return db;
 }
 
+
+function slugCategoryName(name) {
+  return String(name || 'general')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'general';
+}
+
+function buildCatalogsFromDb(db) {
+  const catalogs = [
+    { type: 'movie', id: db.catalogIds.movie, name: 'Películas' },
+    { type: 'series', id: db.catalogIds.series, name: 'Series' },
+    { type: 'tv', id: db.catalogIds.tv, name: 'TV' }
+  ];
+
+  const categories = Array.from(new Set(
+    (db.items || [])
+      .filter(x => x.type === 'tv')
+      .map(x => String(x.category || x.description || (x.genres && x.genres[0]) || 'General').trim())
+      .filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, 'es'));
+
+  for (const cat of categories) {
+    catalogs.push({
+      type: 'tv',
+      id: 'tvcat_' + slugCategoryName(cat),
+      name: 'TV · ' + cat,
+      extra: [{ name: 'search' }]
+    });
+  }
+
+  return catalogs;
+}
+
 function makeMeta(item) {
   const meta = {
     id: item.id,
@@ -180,16 +216,18 @@ function parseM3U(text) {
       break;
     }
     if (!url) continue;
-    const group = attrs['group-title'] || 'Live';
+    const group = attrs['group-title'] || 'General';
     const logo = attrs['tvg-logo'] || 'https://placehold.co/600x900/png?text=TV';
+    const normalizedGroup = String(group).trim() || 'General';
     items.push({
       id: 'tv-' + slug(displayName),
       type: 'tv',
+      category: normalizedGroup,
       name: displayName,
-      description: group,
+      description: normalizedGroup,
       poster: logo,
       background: 'https://placehold.co/1280x720/png?text=' + encodeURIComponent(displayName),
-      genres: [group],
+      genres: [normalizedGroup],
       year: new Date().getFullYear(),
       streams: [{ title: 'Live', url }]
     });
@@ -210,5 +248,6 @@ module.exports = {
   requireAdmin,
   ensureCatalogShape,
   makeMeta,
-  parseM3U
+  parseM3U,
+  buildCatalogsFromDb
 };

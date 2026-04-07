@@ -35,3 +35,9 @@ Crea estas variables en Vercel:
 
 ## Nota
 Sin token, el addon responde 401.
+
+
+## Novedades v2
+- Botón para vaciar toda la base de datos
+- Separación de canales TV por categorías en Stremio usando el group-title de la M3U o la categoría manual
+- Campo categoría en el panel admin

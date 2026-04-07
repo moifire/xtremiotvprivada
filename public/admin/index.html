@@ -70,6 +70,7 @@
           <button class="btn" onclick="importM3U()">Importar M3U</button>
           <button class="btn" onclick="importJSON()">Importar JSON</button>
           <button class="btn btn-ok" onclick="exportJSON()">Exportar JSON</button>
+          <button class="btn" onclick="clearDatabase()">Vaciar DB</button>
           <button class="btn" onclick="logout()">Salir</button>
         </div>
       </div>
@@ -117,6 +118,8 @@
             <div><label>Poster URL</label><input id="poster"></div>
             <div><label>Background URL</label><input id="background"></div>
           </div>
+          <label style="margin-top:12px">Categoría</label>
+          <input id="category" placeholder="Deportes, Shows, Noticias">
           <label style="margin-top:12px">Géneros (coma)</label>
           <input id="genres" placeholder="Live, Sports">
           <label style="margin-top:12px">Stream URL autorizado</label>
@@ -127,7 +130,7 @@
             <button class="btn btn-primary" onclick="saveItem()">Guardar en memoria</button>
             <button class="btn" onclick="resetForm()">Limpiar</button>
           </div>
-          <div class="status" style="margin-top:10px">Después pulsa “Guardar en DB”.</div>
+          <div class="status" style="margin-top:10px">Puedes separar la TV por categorías como Deportes, Shows, Noticias, Infantil, etc. Después pulsa “Guardar en DB”.</div>
         </div>
 
         <div class="sec">
@@ -234,7 +237,26 @@
       setStatus('Catálogo cargado.');
     }
 
-    function saveBrandToDbObj() {
+    
+    async function clearDatabase() {
+      if (!confirm('¿Vaciar por completo la base de datos?')) return;
+      setStatus('Vaciando base de datos...');
+      const res = await fetch('/api/admin/clear-db', {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setStatus(json.error || 'Error vaciando DB');
+        return;
+      }
+      db = json.catalog;
+      bindBrand();
+      render();
+      setStatus('Base de datos vaciada correctamente.');
+    }
+
+function saveBrandToDbObj() {
       db.addonsBrand = {
         name: document.getElementById('brandName').value.trim() || 'MoiTube Ultra Private Legal PRO',
         description: document.getElementById('brandDesc').value.trim() || 'Catálogo privado con base de datos',
@@ -268,6 +290,7 @@
       const description = document.getElementById('description').value.trim();
       const poster = document.getElementById('poster').value.trim();
       const background = document.getElementById('background').value.trim();
+      const category = document.getElementById('category').value.trim();
       const genres = document.getElementById('genres').value.split(',').map(x => x.trim()).filter(Boolean);
       const streamUrl = document.getElementById('streamUrl').value.trim();
       const streamTitle = document.getElementById('streamTitle').value.trim() || 'HD';
@@ -277,7 +300,7 @@
         return null;
       }
 
-      const item = { id, type, name, description, poster, background, genres, year };
+      const item = { id, type, category, name, description, poster, background, genres, year };
 
       if (type === 'series') {
         item.videos = [{
@@ -313,6 +336,7 @@
       document.getElementById('description').value = item.description || '';
       document.getElementById('poster').value = item.poster || '';
       document.getElementById('background').value = item.background || '';
+      document.getElementById('category').value = item.category || '';
       document.getElementById('genres').value = (item.genres || []).join(', ');
       if (item.type === 'series') {
         const ep = item.videos?.[0];
@@ -343,7 +367,7 @@
     }
 
     function resetForm() {
-      ['id','name','year','description','poster','background','genres','streamUrl','streamTitle'].forEach(id => {
+      ['id','name','year','description','poster','background','category','genres','streamUrl','streamTitle'].forEach(id => {
         document.getElementById(id).value = '';
       });
       document.getElementById('type').value = 'movie';
@@ -361,7 +385,7 @@
           <div class="content">
             <div class="name">${item.name || ''}</div>
             <div class="meta">${item.type} · ${item.year || ''}</div>
-            <div class="meta">${item.description || ''}</div>
+            <div class="meta">${item.category ? ('Categoría: ' + item.category + ' · ') : ''}${item.description || ''}</div>
             <div class="meta" style="margin-top:10px">${(item.genres || []).map(g => `<span class="pill">${g}</span>`).join(' ')}</div>
             <div class="row" style="margin-top:12px">
               <button class="btn" onclick="editItem('${item.id.replace(/'/g, "\'")}')">Editar</button>
