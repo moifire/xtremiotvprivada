@@ -1,0 +1,28 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/public/admin/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/public/admin/index.html"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/api/manifest"
+    },
+    {
+      "source": "/catalog/:type/:id.json",
+      "destination": "/api/catalog?type=:type&id=:id"
+    },
+    {
+      "source": "/meta/:type/:id.json",
+      "destination": "/api/meta?type=:type&id=:id"
+    },
+    {
+      "source": "/stream/:type/:id.json",
+      "destination": "/api/stream?type=:type&id=:id"
+    }
+  ]
+}
