@@ -132,10 +132,14 @@ function ensureCatalogShape(db) {
     hiddenCategories: [],
     categoryOrder: [],
     categoryAliases: {},
+    nameCleanupRemove: ['1080p','720p','480p','hd','fhd','uhd','4k','h264','h265','hevc','aac','lat','esp','es','cast','castellano'],
+    nameCleanupReplace: {},
     defaultPoster: 'https://placehold.co/600x900/png?text=No+Logo',
     defaultBackground: 'https://placehold.co/1280x720/png?text=MoiTube'
   };
   db.settings.categoryAliases = db.settings.categoryAliases || {};
+  db.settings.nameCleanupRemove = Array.isArray(db.settings.nameCleanupRemove) ? db.settings.nameCleanupRemove : ['1080p','720p','480p','hd','fhd','uhd','4k'];
+  db.settings.nameCleanupReplace = db.settings.nameCleanupReplace || {};
   return db;
 }
 
@@ -155,6 +159,47 @@ function titleCaseWords(str) {
     .filter(Boolean)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+function cleanChannelName(name, db) {
+  let out = String(name || '').trim();
+
+  const removeTokens = db?.settings?.nameCleanupRemove || [
+    '1080p', '720p', '480p', 'hd', 'fhd', 'uhd', '4k',
+    'h264', 'h265', 'hevc', 'aac', 'lat', 'esp', 'es', 'cast', 'castellano'
+  ];
+
+  out = out
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\([^\)]*\)/g, ' ')
+    .replace(/\bS0?\d+E0?\d+\b/gi, ' ')
+    .replace(/\bcap(?:itulo)?\s*\d+\b/gi, ' ')
+    .replace(/[|_]+/g, ' ')
+    .replace(/\s+-\s+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  for (const token of removeTokens) {
+    const safe = String(token).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp('\\b' + safe + '\\b', 'gi'), ' ');
+  }
+
+  out = out
+    .replace(/\s+/g, ' ')
+    .replace(/\bTV channel\b/gi, '')
+    .replace(/\bChannel\b/gi, '')
+    .replace(/\bLive\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const replacements = db?.settings?.nameCleanupReplace || {};
+  for (const [from, to] of Object.entries(replacements)) {
+    if (!from) continue;
+    const safe = String(from).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(safe, 'gi'), String(to));
+  }
+
+  return out || String(name || '').trim() || 'Canal';
 }
 
 function normalizeCategoryLabel(name, db) {
@@ -282,13 +327,13 @@ function parseM3U(text) {
     const logo = attrs['tvg-logo'] || 'https://placehold.co/600x900/png?text=TV';
     const normalizedGroup = String(group).trim() || 'General';
     items.push({
-      id: 'tv-' + slug(displayName),
+      id: 'tv-' + slug(cleanedName),
       type: 'tv',
       category: normalizeCategoryLabel(normalizedGroup, { settings: { categoryAliases: {} } }),
-      name: displayName,
+      name: cleanedName,
       description: normalizedGroup,
       poster: logo,
-      background: 'https://placehold.co/1280x720/png?text=' + encodeURIComponent(displayName),
+      background: 'https://placehold.co/1280x720/png?text=' + encodeURIComponent(cleanedName),
       genres: [normalizedGroup],
       year: new Date().getFullYear(),
       streams: [{ title: 'Live', url }]
@@ -312,5 +357,6 @@ module.exports = {
   makeMeta,
   parseM3U,
   buildCatalogsFromDb,
-  normalizeCategoryLabel
+  normalizeCategoryLabel,
+  cleanChannelName
 };
