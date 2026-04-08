@@ -110,10 +110,6 @@
           <input id="defaultBackground" placeholder="https://...">
           <label style="margin-top:12px">Alias automáticos de categorías</label>
           <textarea id="categoryAliases" placeholder="sports=Deportes&#10;deporte=Deportes&#10;showtime=Shows&#10;news=Noticias"></textarea>
-          <label style="margin-top:12px">Palabras a quitar de nombres de canales</label>
-          <textarea id="nameCleanupRemove" placeholder="1080p&#10;720p&#10;HD&#10;LAT&#10;ESP"></textarea>
-          <label style="margin-top:12px">Reemplazos automáticos de nombres</label>
-          <textarea id="nameCleanupReplace" placeholder="tv channel=&#10;show time=Showtime&#10;futbol=Fútbol"></textarea>
         </div>
 
         <div class="sec">
@@ -241,9 +237,6 @@
       document.getElementById('defaultBackground').value = db.settings?.defaultBackground || '';
       const aliases = db.settings?.categoryAliases || {};
       document.getElementById('categoryAliases').value = Object.entries(aliases).map(([k,v]) => `${k}=${v}`).join('\n');
-      document.getElementById('nameCleanupRemove').value = (db.settings?.nameCleanupRemove || []).join('\n');
-      const nameRepl = db.settings?.nameCleanupReplace || {};
-      document.getElementById('nameCleanupReplace').value = Object.entries(nameRepl).map(([k,v]) => `${k}=${v}`).join('\n');
     }
 
     function bindBrand() {

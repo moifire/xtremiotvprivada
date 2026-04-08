@@ -52,8 +52,3 @@ Sin token, el addon responde 401.
 - Renombrado automático de categorías
 - Fusión automática de grupos parecidos
 - Alias configurables desde el panel admin usando formato origen=destino
-
-## Novedades v5
-- Limpieza automática de nombres de canales
-- Quita etiquetas como HD, 1080p, LAT, ESP, etc.
-- Reemplazos configurables desde el panel admin usando formato origen=destino

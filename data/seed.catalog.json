@@ -51,28 +51,6 @@
       "noticias": "Noticias",
       "kids": "Infantil",
       "anime": "Infantil"
-    },
-    "nameCleanupRemove": [
-      "1080p",
-      "720p",
-      "480p",
-      "HD",
-      "FHD",
-      "UHD",
-      "4K",
-      "LAT",
-      "ESP",
-      "ES",
-      "CAST",
-      "CASTELLANO",
-      "H264",
-      "H265",
-      "HEVC",
-      "AAC"
-    ],
-    "nameCleanupReplace": {
-      "tv channel": "",
-      "show time": "Showtime"
     }
   }
 }
