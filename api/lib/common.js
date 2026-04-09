@@ -229,7 +229,7 @@ function makeMeta(item, db) {
   const defaultPoster = db?.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Logo';
   const defaultBackground = db?.settings?.defaultBackground || 'https://placehold.co/1280x720/png?text=MoiTube';
 
-  const image =
+  const poster =
     item.poster ||
     item.logo ||
     item.background ||
@@ -238,6 +238,8 @@ function makeMeta(item, db) {
 
   const background =
     item.background ||
+    item.posterLandscape ||
+    item.backdrop ||
     item.poster ||
     item.logo ||
     item.tvgLogo ||
@@ -248,9 +250,8 @@ function makeMeta(item, db) {
     type: item.type,
     name: item.name,
     description: item.description || '',
-    poster: image,
-    background: background,
-    logo: image,
+    poster,
+    background,
     genres: item.genres || [],
     year: item.year || undefined
   };
@@ -309,8 +310,9 @@ function parseM3U(text) {
       name: displayName,
       description: normalizedGroup,
       poster: logo,
-      background: logo,
-      logo: logo,
+      background: attrs['tvg-background'] || logo,
+      posterLandscape: attrs['tvg-background'] || logo,
+      logo: '',
       genres: [normalizedGroup],
       year: new Date().getFullYear(),
       streams: [{ title: 'Live', url }]
