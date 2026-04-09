@@ -43,7 +43,7 @@ function parseUrl(req) {
   return new URL(req.url, 'http://localhost');
 }
 
-function randId(prefix='id') {
+function randId(prefix = 'id') {
   return prefix + '_' + Math.random().toString(36).slice(2, 10);
 }
 
@@ -139,7 +139,6 @@ function ensureCatalogShape(db) {
   return db;
 }
 
-
 function slugCategoryName(name) {
   return String(name || 'general')
     .toLowerCase()
@@ -229,16 +228,33 @@ function buildCatalogsFromDb(db) {
 function makeMeta(item, db) {
   const defaultPoster = db?.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Logo';
   const defaultBackground = db?.settings?.defaultBackground || 'https://placehold.co/1280x720/png?text=MoiTube';
+
+  const image =
+    item.poster ||
+    item.logo ||
+    item.background ||
+    item.tvgLogo ||
+    defaultPoster;
+
+  const background =
+    item.background ||
+    item.poster ||
+    item.logo ||
+    item.tvgLogo ||
+    defaultBackground;
+
   const meta = {
     id: item.id,
     type: item.type,
     name: item.name,
     description: item.description || '',
-    poster: item.poster || defaultPoster,
-    background: item.background || defaultBackground,
+    poster: image,
+    background: background,
+    logo: image,
     genres: item.genres || [],
     year: item.year || undefined
   };
+
   if (item.type === 'series' && Array.isArray(item.videos)) {
     meta.videos = item.videos.map(v => ({
       id: v.id,
@@ -248,6 +264,7 @@ function makeMeta(item, db) {
       released: v.released
     }));
   }
+
   return meta;
 }
 
@@ -266,9 +283,11 @@ function parseM3U(text) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line.startsWith('#EXTINF:')) continue;
+
     const attrs = parseAttrs(line);
     const comma = line.indexOf(',');
     const displayName = comma >= 0 ? line.slice(comma + 1).trim() : (attrs['tvg-name'] || 'Canal');
+
     let url = '';
     for (let j = i + 1; j < lines.length; j++) {
       const next = lines[j].trim();
@@ -278,9 +297,11 @@ function parseM3U(text) {
       break;
     }
     if (!url) continue;
+
     const group = attrs['group-title'] || 'General';
     const logo = attrs['tvg-logo'] || 'https://placehold.co/600x900/png?text=TV';
     const normalizedGroup = String(group).trim() || 'General';
+
     items.push({
       id: 'tv-' + slug(displayName),
       type: 'tv',
@@ -288,12 +309,14 @@ function parseM3U(text) {
       name: displayName,
       description: normalizedGroup,
       poster: logo,
-      background: 'https://placehold.co/1280x720/png?text=' + encodeURIComponent(displayName),
+      background: logo,
+      logo: logo,
       genres: [normalizedGroup],
       year: new Date().getFullYear(),
       streams: [{ title: 'Live', url }]
     });
   }
+
   return items;
 }
 
