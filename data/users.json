@@ -1,14 +1,5 @@
 {
-  "users": [
-    {
-      "token": "cliente_demo_001",
-      "name": "Cliente Demo",
-      "enabled": true,
-      "expiresAt": 1893456000000,
-      "maxIps": 2,
-      "ips": [],
-      "notes": "Usuario de prueba",
-      "routeKey": "ultra-9xk2m1"
-    }
-  ]
+ "users":[
+  {"token":"demo","name":"demo","enabled":true,"expiresAt":0,"maxIps":1,"ips":[]}
+ ]
 }
