@@ -1,9 +1,12 @@
-const { sendJson, handleOptions, requireAddonToken, makeMeta, parseUrl } = require('./lib/common');
+const { sendJson, handleOptions, makeMeta, parseUrl } = require('./lib/common');
+const { requirePrivateAccess } = require('./lib/private');
 const { getCatalog } = require('./lib/db');
 
 module.exports = async (req, res) => {
   if (handleOptions(req, res)) return;
-  if (!requireAddonToken(req, res)) return;
+
+  const user = await requirePrivateAccess(req, res);
+  if (!user) return;
 
   const url = parseUrl(req);
   const type = url.searchParams.get('type');
@@ -11,5 +14,6 @@ module.exports = async (req, res) => {
   const db = await getCatalog();
   const item = db.items.find(x => x.id === id && (!type || x.type === type));
   if (!item) return sendJson(res, 404, { error: 'Meta no encontrada' });
+
   return sendJson(res, 200, { meta: makeMeta(item, db) });
 };
