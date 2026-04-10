@@ -1,5 +1,13 @@
 {
- "users":[
-  {"token":"demo","name":"demo","enabled":true,"expiresAt":0,"maxIps":1,"ips":[]}
- ]
+  "users": [
+    {
+      "token": "demo",
+      "name": "Demo",
+      "enabled": true,
+      "expiresAt": 0,
+      "maxIps": 1,
+      "ips": [],
+      "notes": "usuario demo"
+    }
+  ]
 }
