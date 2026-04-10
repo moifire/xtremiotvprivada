@@ -1,11 +1,10 @@
 const { sendJson, readJsonBody, requireAdmin } = require('./common');
-const { getUsersDb, saveUsersDb, normalizeUser, makeUserToken, makeRouteKey } = require('./private');
+const { getUsersDb, saveUsersDb, normalizeUser, makeUserToken } = require('./private');
 
-function buildInstallUrl(req, user) {
+function buildInstallUrl(req, token) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const rk = user.routeKey ? `&rk=${encodeURIComponent(user.routeKey)}` : '';
-  return `${proto}://${host}/api/manifest?token=${encodeURIComponent(user.token)}${rk}`;
+  return `${proto}://${host}/manifest.json?token=${encodeURIComponent(token)}`;
 }
 
 async function handleAdminUsers(req, res) {
@@ -15,9 +14,7 @@ async function handleAdminUsers(req, res) {
   const db = await getUsersDb();
 
   if (req.method === 'GET') {
-    return sendJson(res, 200, {
-      users: (db.users || []).map(u => ({ ...u, installUrl: buildInstallUrl(req, u) }))
-    });
+    return sendJson(res, 200, { users: (db.users || []).map(u => ({ ...u, installUrl: buildInstallUrl(req, u.token) })) });
   }
 
   if (req.method === 'POST') {
@@ -32,7 +29,6 @@ async function handleAdminUsers(req, res) {
       maxIps: body.maxIps,
       ips: [],
       notes: body.notes,
-      routeKey: body.routeKey || makeRouteKey(),
     });
 
     if (!user.token || !user.name) return sendJson(res, 400, { error: 'Faltan campos obligatorios' });
@@ -40,34 +36,22 @@ async function handleAdminUsers(req, res) {
 
     db.users.push(user);
     await saveUsersDb(db);
-    return sendJson(res, 200, { ok: true, user: { ...user, installUrl: buildInstallUrl(req, user) } });
+    return sendJson(res, 200, { ok: true, user: { ...user, installUrl: buildInstallUrl(req, user.token) } });
   }
 
   if (req.method === 'PUT') {
     const body = await readJsonBody(req).catch(() => null);
     if (!body) return sendJson(res, 400, { error: 'JSON inválido' });
-
     const idx = db.users.findIndex(u => String(u.token) === String(body.token));
     if (idx === -1) return sendJson(res, 404, { error: 'Usuario no encontrado' });
-
-    const current = db.users[idx];
-    const next = normalizeUser({
-      ...current,
-      ...body,
-      token: current.token,
-      routeKey: body.regenerateRouteKey ? makeRouteKey() : (body.routeKey || current.routeKey || makeRouteKey()),
-      expiresAt: body.extend30days ? (Number(current.expiresAt || Date.now()) + 30*24*60*60*1000) : (body.expiresAt ?? current.expiresAt),
-    });
-
-    db.users[idx] = next;
+    db.users[idx] = normalizeUser({ ...db.users[idx], ...body, token: db.users[idx].token });
     await saveUsersDb(db);
-    return sendJson(res, 200, { ok: true, user: { ...next, installUrl: buildInstallUrl(req, next) } });
+    return sendJson(res, 200, { ok: true, user: { ...db.users[idx], installUrl: buildInstallUrl(req, db.users[idx].token) } });
   }
 
   if (req.method === 'DELETE') {
     const body = await readJsonBody(req).catch(() => null);
     if (!body || !body.token) return sendJson(res, 400, { error: 'Token requerido' });
-
     db.users = (db.users || []).filter(u => String(u.token) !== String(body.token));
     await saveUsersDb(db);
     return sendJson(res, 200, { ok: true });

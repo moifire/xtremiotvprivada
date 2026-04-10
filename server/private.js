@@ -1,6 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
-const { parseUrl, sendJson, randId } = require('./common');
+const { parseUrl, sendJson } = require('./common');
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -20,12 +20,6 @@ async function saveUsersDb(db) {
   await fs.writeFile(USERS_FILE, JSON.stringify(db, null, 2), 'utf8');
 }
 
-function getClientIp(req) {
-  const xfwd = req.headers['x-forwarded-for'];
-  if (typeof xfwd === 'string' && xfwd.trim()) return xfwd.split(',')[0].trim();
-  return req.socket?.remoteAddress || '';
-}
-
 function normalizeUser(user = {}) {
   return {
     token: String(user.token || '').trim(),
@@ -35,7 +29,6 @@ function normalizeUser(user = {}) {
     maxIps: Number(user.maxIps || 0) || 0,
     ips: Array.isArray(user.ips) ? user.ips.filter(Boolean) : [],
     notes: String(user.notes || '').trim(),
-    routeKey: String(user.routeKey || '').trim(),
   };
 }
 
@@ -46,16 +39,13 @@ function makeUserToken(name = 'cliente') {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 20) || 'cliente';
-  return `${safe}_${randId('tok').replace(/^tok_/, '')}`;
+  return `${safe}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function makeRouteKey() {
-  return `ultra-${Math.random().toString(36).slice(2,8)}`;
-}
-
-function getRequestedRouteKey(req) {
-  const url = parseUrl(req);
-  return String(url.searchParams.get('rk') || req.headers['x-addon-rk'] || '').trim();
+function getClientIp(req) {
+  const xfwd = req.headers['x-forwarded-for'];
+  if (typeof xfwd === 'string' && xfwd.trim()) return xfwd.split(',')[0].trim();
+  return req.socket?.remoteAddress || '';
 }
 
 async function requirePrivateAccess(req, res) {
@@ -83,12 +73,6 @@ async function requirePrivateAccess(req, res) {
     return null;
   }
 
-  const rk = getRequestedRouteKey(req);
-  if (user.routeKey && rk && user.routeKey !== rk) {
-    sendJson(res, 403, { error: 'Ruta privada inválida' });
-    return null;
-  }
-
   const ip = getClientIp(req);
   if (ip && !user.ips.includes(ip)) {
     if (user.maxIps > 0 && user.ips.length >= user.maxIps) {
@@ -103,12 +87,4 @@ async function requirePrivateAccess(req, res) {
   return user;
 }
 
-module.exports = {
-  getUsersDb,
-  saveUsersDb,
-  getClientIp,
-  normalizeUser,
-  makeUserToken,
-  makeRouteKey,
-  requirePrivateAccess,
-};
+module.exports = { getUsersDb, saveUsersDb, normalizeUser, makeUserToken, requirePrivateAccess };
