@@ -82,13 +82,7 @@ function requireAdmin(req, res) {
 
   return { role: 'admin' };
 }
-  if (!payload || payload.role !== 'admin') {
-    sendJson(res, 401, { error: 'Admin unauthorized' });
-    return null;
-  }
-  return payload;
-}
-
+  
 function titleCaseWords(str) {
   return String(str || '')
     .split(' ')
