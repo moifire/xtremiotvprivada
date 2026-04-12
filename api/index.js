@@ -120,6 +120,7 @@ async function handleAdmin(req, res, url, pathname) {
       enabled: body.enabled !== false,
       expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
       maxConnections: Math.max(1, Number(body.maxConnections || 1)),
+      plan: normalizePlan(body.plan),
       notes: String(body.notes || '').trim(),
       ips: Array.isArray(current?.ips) ? current.ips : [],
       lastAccessAt: current?.lastAccessAt || null,
@@ -136,6 +137,22 @@ async function handleAdmin(req, res, url, pathname) {
       user: next,
       installUrl: `${siteBase(req)}/u/${encodeURIComponent(next.token)}/manifest.json`
     });
+  }
+
+  if (pathname === '/api/admin/users/renew' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const users = await getUsers();
+    const idx = users.findIndex((u) => u.id === String(body.id || ''));
+    if (idx < 0) return sendJson(res, 404, { error: 'Usuario no encontrado' });
+    const plan = normalizePlan(body.plan || users[idx].plan);
+    const days = Number(body.days || planDays(plan));
+    if (!days || days < 1) return sendJson(res, 400, { error: 'Renovación no válida' });
+    const baseTs = users[idx].expiresAt && Date.parse(users[idx].expiresAt) > Date.now() ? Date.parse(users[idx].expiresAt) : Date.now();
+    users[idx].expiresAt = new Date(baseTs + days * 24 * 60 * 60 * 1000).toISOString();
+    users[idx].plan = plan;
+    users[idx].updatedAt = new Date().toISOString();
+    await saveUsers(users);
+    return sendJson(res, 200, { ok: true, user: users[idx] });
   }
 
   if (pathname === '/api/admin/users/delete' && req.method === 'POST') {
@@ -185,6 +202,20 @@ async function handleAdmin(req, res, url, pathname) {
   return sendJson(res, 404, { error: 'Ruta admin no encontrada' });
 }
 
+
+function normalizePlan(value) {
+  const plan = String(value || 'mensual').trim().toLowerCase();
+  if (plan === 'mensual' || plan === 'trimestral' || plan === 'anual' || plan === 'personalizado') return plan;
+  return 'mensual';
+}
+
+function planDays(plan) {
+  if (plan === 'trimestral') return 90;
+  if (plan === 'anual') return 365;
+  if (plan === 'personalizado') return 30;
+  return 30;
+}
+
 async function serveManifest(req, res, token) {
   const catalog = await getCatalog();
   const categories = unique(catalog.items.filter((item) => (item.type || 'tv') === 'tv').map((item) => item.category || 'General'));
@@ -194,7 +225,7 @@ async function serveManifest(req, res, token) {
 
   return sendJson(res, 200, {
     id: 'com.moitube.ultra.private.v4',
-    version: '4.1.0',
+    version: '4.2.0',
     name: 'MoiTube Ultra Private Legal PRO',
     description: 'Catálogo privado con usuarios, caducidad, conexiones y panel admin.',
     logo: '',
