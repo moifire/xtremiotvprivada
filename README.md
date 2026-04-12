@@ -1,4 +1,4 @@
-# MoiTube ULTRA PRO DB v4
+# MoiTube ULTRA PRO DB v5
 
 Versión limpia para Vercel Hobby con:
 
@@ -6,7 +6,9 @@ Versión limpia para Vercel Hobby con:
 - panel admin en `/admin`
 - test Redis visible en el panel
 - usuarios con token privado
-- caducidad y máximo de conexiones/IPs
+- suscripciones PRO: mensual, trimestral, anual y personalizado
+- renovación rápida por usuario
+- tarjeta de cliente con QR para compartir
 - importación de M3U por archivo o por texto
 - guardado en Upstash si están las variables de entorno
 
@@ -23,3 +25,7 @@ Versión limpia para Vercel Hobby con:
 ## URL de instalación en Stremio
 
 `https://TU-DOMINIO.vercel.app/u/TOKEN/manifest.json`
+
+## Nota
+
+La tarjeta cliente usa la librería `qrcode` desde CDN para generar el QR en el navegador del panel.
