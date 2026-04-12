@@ -1,54 +1,39 @@
-# ULTRA PRO DB PRIVADA + M3U (LEGAL)
+# MoiTube ULTRA PRO LIMPIO FINAL
 
-Proyecto privado para Stremio con panel admin, base de datos y soporte M3U.
-Uso exclusivo para contenido propio, autorizado o licenciado.
+Versión limpia para **Vercel Hobby** con:
 
-## Stack
-- Vercel Functions
-- Upstash Redis REST API (como base de datos)
-- Token privado para el addon
-- Login admin con sesión firmada
-- Importación de M3U desde navegador
-- Node 24
+- **1 sola función** en `/api/index.js`
+- panel admin estático en `/admin`
+- usuarios con token privado
+- caducidad
+- máximo de conexiones/IPs
+- reset de IPs
+- importar catálogo por JSON o M3U
+- rutas Stremio por token en path:
+  - `/u/TOKEN/manifest.json`
+  - `/u/TOKEN/catalog/...`
+  - `/u/TOKEN/meta/...`
+  - `/u/TOKEN/stream/...`
 
 ## Variables de entorno
-Crea estas variables en Vercel:
 
-- ADDON_TOKEN=tu_token_privado_para_stremio
-- ADMIN_USER=admin
-- ADMIN_PASS=tu_password_segura
-- SESSION_SECRET=una_cadena_larga_y_aleatoria
-- UPSTASH_REDIS_REST_URL=https://tu-endpoint.upstash.io
-- UPSTASH_REDIS_REST_TOKEN=tu_token_upstash
-- CATALOG_KEY=moitube:catalog (opcional)
+- `ADMIN_USER`
+- `ADMIN_PASS`
+- `SESSION_SECRET`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- opcional: `CATALOG_KEY`
+- opcional: `USERS_KEY`
 
-## Flujo
-1. Sube a GitHub.
-2. Importa el repo en Vercel.
-3. Configura variables de entorno.
-4. Despliega.
-5. Entra en /admin y haz login.
-6. Importa tu M3U autorizada o añade contenido manualmente.
-7. Guarda.
-8. Instala el addon en:
-   https://TU-PROYECTO.vercel.app/manifest.json?token=TU_TOKEN
+## Importante
 
-## Nota
-Sin token, el addon responde 401.
+Dentro de `/api` solo debe existir `index.js`.
 
+## Instalación privada
 
-## Novedades v2
-- Botón para vaciar toda la base de datos
-- Separación de canales TV por categorías en Stremio usando el group-title de la M3U o la categoría manual
-- Campo categoría en el panel admin
+El panel genera enlaces así:
 
-## Novedades v3
-- Ocultar categorías TV desde panel
-- Ordenar categorías TV desde panel
-- Logo y fondo por defecto configurables
-- Las series mantienen la ficha principal de la serie y los capítulos se muestran al entrar en la meta de la serie
+```text
+https://TU-DOMINIO.vercel.app/u/TOKEN/manifest.json
+```
 
-## Novedades v4
-- Renombrado automático de categorías
-- Fusión automática de grupos parecidos
-- Alias configurables desde el panel admin usando formato origen=destino

@@ -1,9 +1,9 @@
 {
-  "name": "ultra-pro-db-private-m3u",
-  "version": "3.0.0",
+  "name": "xtremiotvprivada-ultra-pro-limpio-final",
+  "version": "4.0.0",
   "private": true,
-  "description": "Private legal Stremio addon with DB-backed admin panel and M3U import",
+  "type": "module",
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
   }
 }
