@@ -44,6 +44,15 @@
     .login{max-width:460px;margin:60px auto;padding:22px;background:var(--panel);border:1px solid var(--line);border-radius:18px}
     .hidden{display:none}
     .top-actions{display:flex;gap:12px;flex-wrap:wrap}
+
+    .user-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--line);background:#0f1219}
+    .badge-ok{color:#8ef0bb}
+    .badge-off{color:#ff9b9b}
+    .mini{font-size:12px;color:var(--muted)}
+    .copy{cursor:pointer}
+
     @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
   </style>
 </head>
@@ -148,6 +157,29 @@
         </div>
 
         <div class="sec">
+          <h3 style="margin-top:0">Usuarios privados</h3>
+          <div class="grid2">
+            <div><label>Nombre cliente</label><input id="userName" placeholder="Cliente 1"></div>
+            <div><label>Máx. conexiones/IPs</label><input id="userMaxConnections" type="number" min="1" placeholder="1"></div>
+          </div>
+          <label style="margin-top:12px">Caduca el</label>
+          <input id="userExpiresAt" type="datetime-local">
+          <label style="margin-top:12px">Notas</label>
+          <textarea id="userNotes" placeholder="Observaciones, plan, paquete..."></textarea>
+          <div class="row" style="margin-top:14px">
+            <button class="btn btn-primary" onclick="saveUser()">Guardar usuario</button>
+            <button class="btn" onclick="resetUserForm()">Limpiar</button>
+          </div>
+          <div class="status" style="margin-top:10px">Crea usuarios con enlace privado, fecha de caducidad y límite de conexiones/IPs. Puedes reiniciar IPs de un usuario cuando cambie de dispositivo.</div>
+          <input id="editingUserToken" class="hidden">
+        </div>
+
+        <div class="sec">
+          <h3 style="margin-top:0">Lista de usuarios</h3>
+          <div id="usersList" class="row" style="flex-direction:column"></div>
+        </div>
+
+        <div class="sec">
           <h3 style="margin-top:0">Estado</h3>
           <div id="status" class="status">Cargando…</div>
         </div>
@@ -166,15 +198,26 @@
   <input id="jsonInput" type="file" accept=".json,application/json" class="hidden">
   <input id="m3uInput" type="file" accept=".m3u,.m3u8,text/plain" class="hidden">
 
+  
   <script>
     let sessionToken = localStorage.getItem('moitube_admin_session') || '';
-    let db = { addonsBrand:{name:'',description:'',logo:''}, catalogIds:{}, items:[] };
+    let db = { addonsBrand:{name:'',description:'',logo:''}, catalogIds:{}, items:[], settings:{} };
+    let usersDb = { users: [] };
 
     function authHeaders(extra={}) {
       return Object.assign({
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + sessionToken
       }, extra);
+    }
+
+    function escapeHtml(value='') {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function updateInstallUrl() {
@@ -186,25 +229,31 @@
       document.getElementById('status').textContent = msg;
     }
 
+    async function apiJson(url, options={}) {
+      const res = await fetch(url, options);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Error');
+      return json;
+    }
+
     async function login() {
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value.trim();
       const msg = document.getElementById('loginMsg');
       msg.textContent = 'Entrando...';
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ username, password })
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        msg.textContent = json.error || 'Error';
-        return;
+      try {
+        const json = await apiJson('/api/admin/login', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ username, password })
+        });
+        sessionToken = json.token;
+        localStorage.setItem('moitube_admin_session', sessionToken);
+        showApp();
+        await loadAll();
+      } catch (e) {
+        msg.textContent = e.message;
       }
-      sessionToken = json.token;
-      localStorage.setItem('moitube_admin_session', sessionToken);
-      showApp();
-      await loadCatalog();
     }
 
     function logout() {
@@ -222,12 +271,14 @@
     async function checkSession() {
       if (!sessionToken) return;
       try {
-        const res = await fetch('/api/admin/catalog', { headers: authHeaders() });
-        if (res.ok) {
-          showApp();
-          await loadCatalog();
-        }
+        await apiJson('/api/admin/catalog', { headers: authHeaders() });
+        showApp();
+        await loadAll();
       } catch {}
+    }
+
+    async function loadAll() {
+      await Promise.all([loadCatalog(), loadUsers()]);
     }
 
     function bindSettings() {
@@ -248,12 +299,7 @@
 
     async function loadCatalog() {
       setStatus('Cargando catálogo desde DB...');
-      const res = await fetch('/api/admin/catalog', { headers: authHeaders() });
-      const json = await res.json();
-      if (!res.ok) {
-        setStatus(json.error || 'Error cargando catálogo');
-        return;
-      }
+      const json = await apiJson('/api/admin/catalog', { headers: authHeaders() });
       db = json;
       bindBrand();
       bindSettings();
@@ -261,19 +307,19 @@
       setStatus('Catálogo cargado.');
     }
 
-    
+    async function loadUsers() {
+      const json = await apiJson('/api/admin/users', { headers: authHeaders() });
+      usersDb = json;
+      renderUsers();
+    }
+
     async function clearDatabase() {
       if (!confirm('¿Vaciar por completo la base de datos?')) return;
       setStatus('Vaciando base de datos...');
-      const res = await fetch('/api/admin/clear-db', {
+      const json = await apiJson('/api/admin/clear-db', {
         method: 'POST',
         headers: authHeaders()
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setStatus(json.error || 'Error vaciando DB');
-        return;
-      }
       db = json.catalog;
       bindBrand();
       bindSettings();
@@ -281,27 +327,34 @@
       setStatus('Base de datos vaciada correctamente.');
     }
 
-function saveBrandToDbObj() {
+    function saveBrandToDbObj() {
       db.addonsBrand = {
         name: document.getElementById('brandName').value.trim() || 'MoiTube Ultra Private Legal PRO',
         description: document.getElementById('brandDesc').value.trim() || 'Catálogo privado con base de datos',
         logo: document.getElementById('brandLogo').value.trim()
       };
+      db.settings = db.settings || {};
+      db.settings.hiddenCategories = document.getElementById('hiddenCategories').value.split(',').map(x => x.trim()).filter(Boolean);
+      db.settings.categoryOrder = document.getElementById('categoryOrder').value.split(',').map(x => x.trim()).filter(Boolean);
+      db.settings.defaultPoster = document.getElementById('defaultPoster').value.trim();
+      db.settings.defaultBackground = document.getElementById('defaultBackground').value.trim();
+      db.settings.categoryAliases = Object.fromEntries(
+        document.getElementById('categoryAliases').value.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+          const pos = line.indexOf('=');
+          if (pos === -1) return [line.toLowerCase(), line];
+          return [line.slice(0, pos).trim().toLowerCase(), line.slice(pos + 1).trim()];
+        })
+      );
     }
 
     async function saveCatalog() {
       saveBrandToDbObj();
       setStatus('Guardando en DB...');
-      const res = await fetch('/api/admin/catalog', {
+      const json = await apiJson('/api/admin/catalog', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(db)
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setStatus(json.error || 'Error guardando');
-        return;
-      }
       db = json.catalog;
       render();
       setStatus('Guardado online correctamente.');
@@ -326,7 +379,6 @@ function saveBrandToDbObj() {
       }
 
       const item = { id, type, category, name, description, poster, background, genres, year };
-
       if (type === 'series') {
         item.videos = [{
           id: id + ':1:1',
@@ -376,16 +428,11 @@ function saveBrandToDbObj() {
 
     async function removeItem(id) {
       if (!confirm('¿Eliminar este contenido?')) return;
-      const res = await fetch('/api/admin/delete-item', {
+      await apiJson('/api/admin/delete-item', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ id })
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setStatus(json.error || 'Error eliminando');
-        return;
-      }
       db.items = db.items.filter(x => x.id !== id);
       render();
       setStatus('Eliminado correctamente.');
@@ -406,19 +453,172 @@ function saveBrandToDbObj() {
       }
       items.innerHTML = db.items.map(item => `
         <div class="card">
-          <img class="poster" src="${item.poster || db.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Image'}" alt="">
+          <img class="poster" src="${escapeHtml(item.poster || db.settings?.defaultPoster || 'https://placehold.co/600x900/png?text=No+Image')}" alt="">
           <div class="content">
-            <div class="name">${item.name || ''}</div>
-            <div class="meta">${item.type} · ${item.year || ''}${item.type === 'series' ? ' · portada de serie' : ''}</div>
-            <div class="meta">${item.category ? ('Categoría: ' + item.category + ' · ') : ''}${item.description || ''}</div>
-            <div class="meta" style="margin-top:10px">${(item.genres || []).map(g => `<span class="pill">${g}</span>`).join(' ')}</div>
+            <div class="name">${escapeHtml(item.name || '')}</div>
+            <div class="meta">${escapeHtml(item.type)} · ${escapeHtml(item.year || '')}${item.type === 'series' ? ' · portada de serie' : ''}</div>
+            <div class="meta">${item.category ? ('Categoría: ' + escapeHtml(item.category) + ' · ') : ''}${escapeHtml(item.description || '')}</div>
+            <div class="meta" style="margin-top:10px">${(item.genres || []).map(g => `<span class="pill">${escapeHtml(g)}</span>`).join(' ')}</div>
             <div class="row" style="margin-top:12px">
-              <button class="btn" onclick="editItem('${item.id.replace(/'/g, "\'")}')">Editar</button>
-              <button class="btn" onclick="removeItem('${item.id.replace(/'/g, "\'")}')">Eliminar</button>
+              <button class="btn" onclick="editItem(${JSON.stringify(item.id)})">Editar</button>
+              <button class="btn" onclick="removeItem(${JSON.stringify(item.id)})">Eliminar</button>
             </div>
           </div>
         </div>
       `).join('');
+    }
+
+    function formatDate(ts) {
+      if (!ts) return 'Sin caducidad';
+      try { return new Date(ts).toLocaleString('es-ES'); } catch { return 'Sin fecha'; }
+    }
+
+    function toDatetimeLocal(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function userFormData() {
+      const token = document.getElementById('editingUserToken').value.trim();
+      const name = document.getElementById('userName').value.trim();
+      const maxConnections = Number(document.getElementById('userMaxConnections').value || 1) || 1;
+      const expiresRaw = document.getElementById('userExpiresAt').value;
+      const notes = document.getElementById('userNotes').value.trim();
+      if (!name) {
+        alert('Pon un nombre para el usuario.');
+        return null;
+      }
+      return {
+        token,
+        name,
+        maxConnections,
+        expiresAt: expiresRaw ? new Date(expiresRaw).getTime() : 0,
+        notes,
+        enabled: true,
+      };
+    }
+
+    async function saveUser() {
+      const user = userFormData();
+      if (!user) return;
+      if (user.token) {
+        await apiJson('/api/admin/users', {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(user)
+        });
+        setStatus('Usuario actualizado correctamente.');
+      } else {
+        await apiJson('/api/admin/users', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(user)
+        });
+        setStatus('Usuario creado correctamente.');
+      }
+      resetUserForm();
+      await loadUsers();
+    }
+
+    function resetUserForm() {
+      document.getElementById('editingUserToken').value = '';
+      document.getElementById('userName').value = '';
+      document.getElementById('userMaxConnections').value = '1';
+      document.getElementById('userExpiresAt').value = '';
+      document.getElementById('userNotes').value = '';
+    }
+
+    function editUser(token) {
+      const user = (usersDb.users || []).find(u => u.token === token);
+      if (!user) return;
+      document.getElementById('editingUserToken').value = user.token || '';
+      document.getElementById('userName').value = user.name || '';
+      document.getElementById('userMaxConnections').value = user.maxConnections || 1;
+      document.getElementById('userExpiresAt').value = toDatetimeLocal(user.expiresAt);
+      document.getElementById('userNotes').value = user.notes || '';
+      document.getElementById('addonToken').value = user.token || '';
+      updateInstallUrl();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deleteUser(token) {
+      if (!confirm('¿Eliminar este usuario?')) return;
+      await apiJson('/api/admin/users', {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ token })
+      });
+      await loadUsers();
+      setStatus('Usuario eliminado.');
+    }
+
+    async function toggleUser(token, enabled) {
+      await apiJson('/api/admin/users', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ token, enabled })
+      });
+      await loadUsers();
+      setStatus(enabled ? 'Usuario activado.' : 'Usuario desactivado.');
+    }
+
+    async function resetUserIps(token) {
+      await apiJson('/api/admin/users', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ token, resetIps: true })
+      });
+      await loadUsers();
+      setStatus('IPs del usuario reiniciadas.');
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus('Copiado al portapapeles.');
+      } catch {
+        setStatus('No se pudo copiar automáticamente.');
+      }
+    }
+
+    function renderUsers() {
+      const wrap = document.getElementById('usersList');
+      const users = usersDb.users || [];
+      if (!users.length) {
+        wrap.innerHTML = '<div class="status">Todavía no hay usuarios creados.</div>';
+        return;
+      }
+      wrap.innerHTML = users.map(user => {
+        const expired = user.expiresAt && Date.now() > user.expiresAt;
+        const active = user.enabled && !expired;
+        const ipCount = (user.ips || []).length;
+        return `
+          <div class="user-card">
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <div>
+                <div class="name">${escapeHtml(user.name || 'Sin nombre')}</div>
+                <div class="mini mono" style="margin-top:6px">${escapeHtml(user.token || '')}</div>
+              </div>
+              <span class="badge ${active ? 'badge-ok' : 'badge-off'}">${active ? 'ACTIVO' : (expired ? 'CADUCADO' : 'OFF')}</span>
+            </div>
+            <div class="meta" style="margin-top:10px">Caduca: ${escapeHtml(formatDate(user.expiresAt))}</div>
+            <div class="meta">Conexiones/IPs: ${ipCount}/${Number(user.maxConnections || 0) || '∞'}</div>
+            <div class="meta">Último acceso: ${escapeHtml(formatDate(user.lastSeenAt))}</div>
+            <div class="meta">IPs: ${escapeHtml((user.ips || []).join(', ') || 'Ninguna')}</div>
+            <div class="meta">Notas: ${escapeHtml(user.notes || '-')}</div>
+            <div class="hint mono" style="margin-top:10px">${escapeHtml(user.installUrl || '')}</div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" onclick="editUser(${JSON.stringify(user.token)})">Editar</button>
+              <button class="btn copy" onclick="copyText(${JSON.stringify(user.installUrl || '')})">Copiar enlace</button>
+              <button class="btn" onclick="resetUserIps(${JSON.stringify(user.token)})">Reset IPs</button>
+              <button class="btn" onclick="toggleUser(${JSON.stringify(user.token)}, ${active ? 'false' : 'true'})">${active ? 'Desactivar' : 'Activar'}</button>
+              <button class="btn" onclick="deleteUser(${JSON.stringify(user.token)})">Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function importJSON() {
@@ -434,6 +634,7 @@ function saveBrandToDbObj() {
         try {
           db = JSON.parse(String(reader.result || '{}'));
           bindBrand();
+          bindSettings();
           render();
           setStatus('JSON importado localmente. Pulsa “Guardar en DB”.');
         } catch {
@@ -453,19 +654,18 @@ function saveBrandToDbObj() {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = async () => {
-        setStatus('Importando M3U a la base de datos...');
-        const res = await fetch('/api/admin/import-m3u', {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ text: String(reader.result || ''), mode: 'merge' })
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          setStatus(json.error || 'Error importando M3U');
-          return;
+        try {
+          setStatus('Importando M3U a la base de datos...');
+          const json = await apiJson('/api/admin/import-m3u', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ text: String(reader.result || ''), mode: 'merge' })
+          });
+          await loadCatalog();
+          setStatus(`M3U importada. Canales añadidos: ${json.imported}.`);
+        } catch (e) {
+          setStatus(e.message || 'Error importando M3U');
         }
-        await loadCatalog();
-        setStatus(`M3U importada. Canales añadidos: ${json.imported}.`);
       };
       reader.readAsText(file);
     });
@@ -480,7 +680,9 @@ function saveBrandToDbObj() {
     }
 
     document.getElementById('addonToken').addEventListener('input', updateInstallUrl);
+    resetUserForm();
     checkSession();
   </script>
+
 </body>
 </html>
