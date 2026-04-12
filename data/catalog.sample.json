@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": "demo_channel_1",
+      "type": "tv",
+      "name": "Demo Sports 1",
+      "poster": "",
+      "posterShape": "regular",
+      "background": "",
+      "description": "Canal de ejemplo",
+      "genres": ["Deportes"],
+      "category": "Deportes",
+      "streamUrl": "https://example.com/live/demo1.m3u8"
+    },
+    {
+      "id": "demo_series_1",
+      "type": "series",
+      "name": "Demo Series",
+      "poster": "",
+      "posterShape": "regular",
+      "background": "",
+      "description": "Serie de ejemplo",
+      "genres": ["Series"],
+      "category": "Series",
+      "streamUrl": "https://example.com/vod/demo-series.mp4"
+    }
+  ]
+}
