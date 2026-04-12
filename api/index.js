@@ -81,6 +81,12 @@ async function handleAdmin(req, res, url, pathname) {
     const test = await testRedisConnection();
     const users = await getUsers();
     const catalog = await getCatalog();
+    const expiringSoon = users.filter((u) => {
+      if (!u?.expiresAt || u?.enabled === false) return false;
+      const ms = Date.parse(u.expiresAt) - Date.now();
+      return ms > 0 && ms <= 7 * 24 * 60 * 60 * 1000;
+    }).length;
+    const expiredUsers = users.filter((u) => !isUserActive(u)).length;
     return sendJson(res, 200, {
       ok: true,
       storage: hasRedis() ? 'upstash' : 'archivo-local',
@@ -93,7 +99,9 @@ async function handleAdmin(req, res, url, pathname) {
         hasUpstashToken: Boolean(UPSTASH_TOKEN)
       },
       users: users.length,
-      items: catalog.items.length
+      items: catalog.items.length,
+      expiringSoon,
+      expiredUsers
     });
   }
 
@@ -224,10 +232,10 @@ async function serveManifest(req, res, token) {
     : [{ type: 'tv', id: 'all', name: 'TV', extra: [{ name: 'search' }] }];
 
   return sendJson(res, 200, {
-    id: 'com.moitube.ultra.private.v5',
+    id: 'com.moistremiotv.private.v5',
     version: '5.0.0',
-    name: 'MoiTube Ultra Private Legal PRO v5',
-    description: 'Catálogo privado con usuarios, caducidad, conexiones y panel admin.',
+    name: 'MoiStremioTV Private Legal PRO v5',
+    description: 'Catálogo privado con usuarios, caducidad, conexiones, QR y panel admin.',
     logo: '',
     resources: ['catalog', 'meta', 'stream'],
     types: ['tv', 'movie', 'series'],
