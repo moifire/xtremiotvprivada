@@ -224,9 +224,9 @@ async function serveManifest(req, res, token) {
     : [{ type: 'tv', id: 'all', name: 'TV', extra: [{ name: 'search' }] }];
 
   return sendJson(res, 200, {
-    id: 'com.moitube.ultra.private.v4',
-    version: '4.2.0',
-    name: 'MoiTube Ultra Private Legal PRO',
+    id: 'com.moitube.ultra.private.v5',
+    version: '5.0.0',
+    name: 'MoiTube Ultra Private Legal PRO v5',
     description: 'Catálogo privado con usuarios, caducidad, conexiones y panel admin.',
     logo: '',
     resources: ['catalog', 'meta', 'stream'],
