@@ -7,17 +7,17 @@
   <style>
     :root{--bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;--red:#ef4444;--green:#22c55e;--blue:#1d4ed8}
     *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top left,#2a0911 0,#050916 40%);color:var(--text);font-family:Inter,Arial,sans-serif}
-    .wrap{max-width:1400px;margin:0 auto;padding:22px} .grid{display:grid;grid-template-columns:380px 1fr;gap:18px} .card{background:rgba(13,20,40,.98);border:1px solid var(--line);border-radius:22px;padding:18px}
+    .wrap{max-width:1480px;margin:0 auto;padding:22px} .grid{display:grid;grid-template-columns:minmax(360px,420px) minmax(0,1fr);gap:18px;align-items:start} .left-col{position:sticky;top:18px;align-self:start} .card{background:rgba(13,20,40,.98);border:1px solid var(--line);border-radius:22px;padding:18px;overflow:hidden}
     h1,h2,h3{margin:0 0 14px} .muted{color:var(--muted)} .small{font-size:13px} .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} .stack{display:grid;gap:12px}
-    label{display:block;margin:10px 0 6px;color:#dbe5f5} input,textarea,select{width:100%;border-radius:16px;border:1px solid var(--line);background:#091121;color:var(--text);padding:12px 14px;font:inherit}
+    label{display:block;margin:10px 0 6px;color:#dbe5f5} input,textarea,select{width:100%;max-width:100%;border-radius:16px;border:1px solid var(--line);background:#091121;color:var(--text);padding:12px 14px;font:inherit} textarea{resize:vertical;min-height:110px} #catalogJson,#m3uText{min-height:180px} .file-wrap input[type=file]{display:block;width:100%;overflow:hidden}
     input[type=file]{padding:10px} input[type=checkbox]{width:auto;transform:translateY(1px)} button{border:0;border-radius:16px;padding:12px 18px;font-weight:700;color:white;cursor:pointer}
     .btn-red{background:var(--red)} .btn-green{background:var(--green)} .btn-dark{background:#1b2a49} .btn-blue{background:var(--blue)} .hidden{display:none}
     .ok{color:#86efac} .err{color:#fca5a5} .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#091121;border:1px solid var(--line);padding:10px;border-radius:14px;word-break:break-all}
     .user{border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;background:#0a1120} .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
     .item{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#0c1630,#0d1222);overflow:hidden} .poster{height:210px;background:#0a1430 center/cover no-repeat;display:flex;align-items:flex-end;padding:12px}
     .badge{font-size:12px;background:#fff;color:#111827;padding:4px 8px;border-radius:999px;font-weight:700} .item-body{padding:12px}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px} .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
-    .login{max-width:430px;margin:80px auto} @media (max-width:980px){.grid{grid-template-columns:1fr}.top{flex-direction:column;align-items:stretch}}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px} .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px} .plan-badge{display:inline-block;background:#102444;color:#bfdbfe;border:1px solid #1e3a8a;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin:8px 0} .row.tight{gap:8px} .row.tight button{padding:10px 14px}
+    .login{max-width:430px;margin:80px auto} @media (max-width:980px){.grid{grid-template-columns:1fr}.left-col{position:static}.top{flex-direction:column;align-items:stretch}}
   </style>
 </head>
 <body>
@@ -49,7 +49,7 @@
     </div>
 
     <div class="grid">
-      <div class="stack">
+      <div class="stack left-col">
         <div class="card">
           <h2>Usuario</h2>
           <input type="hidden" id="userId">
@@ -67,6 +67,13 @@
               <input id="maxConnections" type="number" min="1" value="1">
             </div>
           </div>
+          <label>Plan</label>
+          <select id="plan">
+            <option value="mensual">Mensual</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="anual">Anual</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
           <label><input id="enabled" type="checkbox" checked> Usuario activo</label>
           <label>Notas</label>
           <textarea id="notes" rows="4" placeholder="Observaciones, plan, paquete..."></textarea>
@@ -79,7 +86,7 @@
 
         <div class="card stack">
           <h2>Importar catálogo</h2>
-          <div>
+          <div class="file-wrap">
             <label>JSON manual</label>
             <textarea id="catalogJson" rows="5" placeholder='{"items": []}'></textarea>
             <div class="row" style="margin-top:10px">
@@ -87,14 +94,14 @@
               <button class="btn-dark" id="loadCatalogBtn">Ver catálogo actual</button>
             </div>
           </div>
-          <div>
+          <div class="file-wrap">
             <label>Archivo M3U / M3U8</label>
             <input id="m3uFile" type="file" accept=".m3u,.m3u8,text/plain">
             <div class="row" style="margin-top:10px">
               <button class="btn-dark" id="importM3UFileBtn">Subir archivo M3U</button>
             </div>
           </div>
-          <div>
+          <div class="file-wrap">
             <label>Pegado manual M3U</label>
             <textarea id="m3uText" rows="4" placeholder="#EXTM3U ..."></textarea>
             <div class="row" style="margin-top:10px">
@@ -164,6 +171,7 @@ function fillForm(user = null) {
   $('token').value = user?.token || '';
   $('expiresAt').value = user?.expiresAt ? user.expiresAt.slice(0,16) : '';
   $('maxConnections').value = user?.maxConnections || 1;
+  $('plan').value = user?.plan || 'mensual';
   $('enabled').checked = user ? !!user.enabled : true;
   $('notes').value = user?.notes || '';
   $('formMsg').textContent = '';
@@ -183,13 +191,19 @@ function renderUser(user) {
     <div class="user">
       <h3>${escapeHtml(user.name)}</h3>
       <div class="small muted">${escapeHtml(user.token)}</div>
+      <div class="plan-badge">Plan: ${escapeHtml(user.plan || 'mensual')}</div>
       <p class="small">Caduca: ${escapeHtml(expires)}<br>Conexiones/IPs: ${(user.ips||[]).length}/${user.maxConnections}<br>Último acceso: ${escapeHtml(last)}<br>IPs: ${escapeHtml((user.ips||[]).join(', ') || '-')}<br>Notas: ${escapeHtml(user.notes || '-')}</p>
       <div class="mono">${escapeHtml(installUrl)}</div>
-      <div class="row" style="margin-top:10px">
+      <div class="row tight" style="margin-top:10px">
         <button class="btn-dark" onclick="editUser('${user.id}')">Editar</button>
-        <button class="btn-blue" onclick="copyUrl('${installUrl.replace(/'/g, "\\'")}')">Copiar enlace</button>
+        <button class="btn-blue" onclick="copyUrl('${installUrl.replace(/'/g, "\'")}')">Copiar enlace</button>
         <button class="btn-dark" onclick="resetIps('${user.id}')">Reset IPs</button>
         <button class="btn-red" onclick="deleteUser('${user.id}')">Eliminar</button>
+      </div>
+      <div class="row tight" style="margin-top:8px">
+        <button class="btn-green" onclick="renewUser('${user.id}','mensual')">Renovar mes</button>
+        <button class="btn-green" onclick="renewUser('${user.id}','trimestral')">Renovar trimestre</button>
+        <button class="btn-green" onclick="renewUser('${user.id}','anual')">Renovar año</button>
       </div>
     </div>`;
 }
@@ -220,6 +234,17 @@ window.copyUrl = async (url) => {
     setMsg('formMsg', 'Enlace copiado al portapapeles.', 'ok');
   } catch {
     setMsg('formMsg', 'No se pudo copiar el enlace.', 'err');
+  }
+};
+
+window.renewUser = async (id, plan) => {
+  try {
+    const data = await api('/api/admin/users/renew', { method: 'POST', body: { id, plan } });
+    await loadUsers();
+    const planTxt = plan === 'trimestral' ? 'trimestre' : (plan === 'anual' ? 'año' : 'mes');
+    setMsg('formMsg', `Usuario renovado: ${planTxt}. Nueva caducidad: ${new Date(data.user.expiresAt).toLocaleString()}`, 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
   }
 };
 
@@ -315,6 +340,7 @@ $('saveUserBtn').onclick = async () => {
       token: $('token').value,
       expiresAt: $('expiresAt').value ? new Date($('expiresAt').value).toISOString() : null,
       maxConnections: Number($('maxConnections').value || 1),
+      plan: $('plan').value,
       enabled: $('enabled').checked,
       notes: $('notes').value
     };
