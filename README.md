@@ -1,21 +1,16 @@
-# MoiTube ULTRA PRO LIMPIO FINAL
+# MoiTube ULTRA PRO DB v4
 
-Versión limpia para **Vercel Hobby** con:
+Versión limpia para Vercel Hobby con:
 
-- **1 sola función** en `/api/index.js`
-- panel admin estático en `/admin`
+- una sola función en `api/index.js`
+- panel admin en `/admin`
+- test Redis visible en el panel
 - usuarios con token privado
-- caducidad
-- máximo de conexiones/IPs
-- reset de IPs
-- importar catálogo por JSON o M3U
-- rutas Stremio por token en path:
-  - `/u/TOKEN/manifest.json`
-  - `/u/TOKEN/catalog/...`
-  - `/u/TOKEN/meta/...`
-  - `/u/TOKEN/stream/...`
+- caducidad y máximo de conexiones/IPs
+- importación de M3U por archivo o por texto
+- guardado en Upstash si están las variables de entorno
 
-## Variables de entorno
+## Variables necesarias
 
 - `ADMIN_USER`
 - `ADMIN_PASS`
@@ -25,15 +20,6 @@ Versión limpia para **Vercel Hobby** con:
 - opcional: `CATALOG_KEY`
 - opcional: `USERS_KEY`
 
-## Importante
+## URL de instalación en Stremio
 
-Dentro de `/api` solo debe existir `index.js`.
-
-## Instalación privada
-
-El panel genera enlaces así:
-
-```text
-https://TU-DOMINIO.vercel.app/u/TOKEN/manifest.json
-```
-
+`https://TU-DOMINIO.vercel.app/u/TOKEN/manifest.json`
