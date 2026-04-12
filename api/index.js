@@ -106,7 +106,7 @@ function requireAdmin(req) {
 }
 
 async function handleAdmin(req, res, url) {
-  const pathname = url.pathname;
+  const pathname = url.searchParams.get('__pathname') || req.headers['x-original-path'] || req.headers['x-rewrite-path'] || url.pathname;
 
   if (pathname === '/api/admin/login' && req.method === 'POST') {
     const body = await readBody(req);
