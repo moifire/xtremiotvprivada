@@ -4,6 +4,6 @@
   "private": true,
   "description": "Private legal Stremio addon with DB-backed admin panel and M3U import",
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
   }
 }
