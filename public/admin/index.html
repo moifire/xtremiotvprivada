@@ -3,85 +3,119 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MoiTube Ultra Pro DB · Admin</title>
+  <title>MoiTube ULTRA PRO DB · Admin v4</title>
   <style>
-    :root { --bg:#070b17; --panel:#0f172a; --line:#22304d; --text:#f8fafc; --muted:#94a3b8; --accent:#ef4444; --accent2:#22c55e; }
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#040814,#0b1220);color:var(--text)}
-    .wrap{max-width:1400px;margin:0 auto;padding:24px}.grid{display:grid;grid-template-columns:360px 1fr;gap:20px}.card{background:rgba(15,23,42,.92);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
-    h1,h2,h3{margin:0 0 12px}.muted{color:var(--muted)} input,textarea,select{width:100%;padding:12px 14px;background:#08101f;border:1px solid #263451;border-radius:14px;color:var(--text);margin:8px 0 12px}
-    button{border:0;border-radius:14px;padding:12px 16px;font-weight:700;cursor:pointer}.btn-red{background:#ef4444;color:#fff}.btn-dark{background:#1e293b;color:#fff}.btn-green{background:#22c55e;color:#04110a}.row{display:flex;gap:10px;flex-wrap:wrap}
-    .user{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;background:#0b1324}.small{font-size:13px;line-height:1.45}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;background:#08101f;border:1px solid var(--line);padding:10px;border-radius:12px}
-    .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}.item{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#0c1630,#0d1222);overflow:hidden}.poster{height:280px;background:#0a1430 center/cover no-repeat;display:flex;align-items:flex-end;padding:12px}.badge{font-size:12px;background:#fff;color:#111827;padding:4px 8px;border-radius:999px;font-weight:700}.item-body{padding:14px}.login{max-width:420px;margin:80px auto}.hidden{display:none}.ok{color:#22c55e}.err{color:#f87171}
+    :root{--bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;--red:#ef4444;--green:#22c55e;--blue:#1d4ed8}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top left,#2a0911 0,#050916 40%);color:var(--text);font-family:Inter,Arial,sans-serif}
+    .wrap{max-width:1400px;margin:0 auto;padding:22px} .grid{display:grid;grid-template-columns:380px 1fr;gap:18px} .card{background:rgba(13,20,40,.98);border:1px solid var(--line);border-radius:22px;padding:18px}
+    h1,h2,h3{margin:0 0 14px} .muted{color:var(--muted)} .small{font-size:13px} .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} .stack{display:grid;gap:12px}
+    label{display:block;margin:10px 0 6px;color:#dbe5f5} input,textarea,select{width:100%;border-radius:16px;border:1px solid var(--line);background:#091121;color:var(--text);padding:12px 14px;font:inherit}
+    input[type=file]{padding:10px} input[type=checkbox]{width:auto;transform:translateY(1px)} button{border:0;border-radius:16px;padding:12px 18px;font-weight:700;color:white;cursor:pointer}
+    .btn-red{background:var(--red)} .btn-green{background:var(--green)} .btn-dark{background:#1b2a49} .btn-blue{background:var(--blue)} .hidden{display:none}
+    .ok{color:#86efac} .err{color:#fca5a5} .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#091121;border:1px solid var(--line);padding:10px;border-radius:14px;word-break:break-all}
+    .user{border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;background:#0a1120} .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+    .item{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#0c1630,#0d1222);overflow:hidden} .poster{height:210px;background:#0a1430 center/cover no-repeat;display:flex;align-items:flex-end;padding:12px}
+    .badge{font-size:12px;background:#fff;color:#111827;padding:4px 8px;border-radius:999px;font-weight:700} .item-body{padding:12px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px} .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+    .login{max-width:430px;margin:80px auto} @media (max-width:980px){.grid{grid-template-columns:1fr}.top{flex-direction:column;align-items:stretch}}
   </style>
 </head>
 <body>
   <div id="loginView" class="wrap login hidden">
-    <div class="card">
-      <h1>Entrar al panel</h1>
+    <div class="card stack">
+      <div>
+        <h1>Entrar al panel</h1>
+        <div class="muted">Admin v4 con test Redis y subida de archivo M3U.</div>
+      </div>
       <input id="loginUser" placeholder="Usuario admin">
       <input id="loginPass" type="password" placeholder="Contraseña">
       <button class="btn-red" id="loginBtn">Entrar</button>
-      <p id="loginMsg" class="small muted"></p>
+      <div id="loginMsg" class="small muted"></div>
     </div>
   </div>
 
   <div id="appView" class="wrap hidden">
-    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div class="top">
       <div>
         <h1>MoiTube ULTRA PRO DB</h1>
-        <div class="muted">Panel privado con usuarios, caducidad, límite de conexiones e importación de catálogo.</div>
+        <div class="muted">Panel privado con usuarios, caducidad, límite de conexiones, test Redis y carga M3U por archivo.</div>
       </div>
       <div class="row">
+        <span id="healthPill" class="pill">Comprobando Redis...</span>
+        <button class="btn-blue" id="testRedisBtn">Test Redis</button>
         <button class="btn-dark" id="refreshBtn">Actualizar</button>
         <button class="btn-dark" id="logoutBtn">Salir</button>
       </div>
     </div>
 
     <div class="grid">
-      <div>
+      <div class="stack">
         <div class="card">
           <h2>Usuario</h2>
           <input type="hidden" id="userId">
           <label>Nombre</label>
-          <input id="name" placeholder="Ej: moifire">
+          <input id="name" placeholder="Ej: Cliente 1">
           <label>Token</label>
-          <input id="token" placeholder="Se genera automático si lo dejas vacío">
-          <label>Caduca</label>
-          <input id="expiresAt" type="datetime-local">
-          <label>Máx. conexiones / IPs</label>
-          <input id="maxConnections" type="number" min="1" value="1">
-          <label><input id="enabled" type="checkbox" checked style="width:auto;margin-right:8px"> Usuario activo</label>
+          <input id="token" placeholder="Vacío = automático">
+          <div class="row">
+            <div style="flex:1;min-width:160px">
+              <label>Caduca</label>
+              <input id="expiresAt" type="datetime-local">
+            </div>
+            <div style="width:150px">
+              <label>Máx. conexiones / IPs</label>
+              <input id="maxConnections" type="number" min="1" value="1">
+            </div>
+          </div>
+          <label><input id="enabled" type="checkbox" checked> Usuario activo</label>
           <label>Notas</label>
           <textarea id="notes" rows="4" placeholder="Observaciones, plan, paquete..."></textarea>
-          <div class="row">
+          <div class="row" style="margin-top:12px">
             <button class="btn-red" id="saveUserBtn">Guardar usuario</button>
             <button class="btn-dark" id="clearFormBtn">Limpiar</button>
           </div>
-          <p id="formMsg" class="small muted"></p>
+          <div id="formMsg" class="small muted" style="margin-top:10px"></div>
         </div>
 
-        <div class="card" style="margin-top:18px">
+        <div class="card stack">
           <h2>Importar catálogo</h2>
-          <textarea id="catalogJson" rows="6" placeholder='Pega JSON con {"items":[...]}'></textarea>
-          <div class="row">
-            <button class="btn-green" id="saveCatalogBtn">Guardar JSON</button>
-            <button class="btn-dark" id="loadCatalogBtn">Ver catálogo actual</button>
+          <div>
+            <label>JSON manual</label>
+            <textarea id="catalogJson" rows="5" placeholder='{"items": []}'></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn-green" id="saveCatalogBtn">Guardar JSON</button>
+              <button class="btn-dark" id="loadCatalogBtn">Ver catálogo actual</button>
+            </div>
           </div>
-          <textarea id="m3uText" rows="6" placeholder="#EXTM3U ..."></textarea>
-          <div class="row">
-            <button class="btn-dark" id="importM3UBtn">Importar M3U</button>
-            <button class="btn-dark" id="clearDbBtn">Vaciar DB</button>
+          <div>
+            <label>Archivo M3U / M3U8</label>
+            <input id="m3uFile" type="file" accept=".m3u,.m3u8,text/plain">
+            <div class="row" style="margin-top:10px">
+              <button class="btn-dark" id="importM3UFileBtn">Subir archivo M3U</button>
+            </div>
           </div>
-          <p id="catalogMsg" class="small muted"></p>
+          <div>
+            <label>Pegado manual M3U</label>
+            <textarea id="m3uText" rows="4" placeholder="#EXTM3U ..."></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn-dark" id="importM3UBtn">Importar texto M3U</button>
+              <button class="btn-red" id="clearDbBtn">Vaciar DB</button>
+            </div>
+          </div>
+          <div id="catalogMsg" class="small muted"></div>
         </div>
       </div>
 
-      <div>
+      <div class="stack">
+        <div class="card">
+          <h2>Estado del sistema</h2>
+          <div id="healthBox" class="small muted">Sin datos.</div>
+        </div>
         <div class="card">
           <h2>Lista de usuarios</h2>
           <div id="users"></div>
         </div>
-        <div class="card" style="margin-top:18px">
+        <div class="card">
           <h2>Catálogo online</h2>
           <div id="catalog" class="catalog-grid"></div>
         </div>
@@ -91,12 +125,13 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+let usersCache = [];
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
     method: options.method || 'GET',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
   const text = await res.text();
@@ -111,6 +146,18 @@ function show(view) {
   $('appView').classList.toggle('hidden', view !== 'app');
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+}
+
+function escapeAttr(value) {
+  return String(value ?? '').replace(/'/g, '%27');
+}
+
+function installUrlFor(token) {
+  return `${location.origin}/u/${encodeURIComponent(token)}/manifest.json`;
+}
+
 function fillForm(user = null) {
   $('userId').value = user?.id || '';
   $('name').value = user?.name || '';
@@ -122,10 +169,16 @@ function fillForm(user = null) {
   $('formMsg').textContent = '';
 }
 
-function userCard(user) {
+function setMsg(id, text, type) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = `small ${type || 'muted'}`;
+}
+
+function renderUser(user) {
   const expires = user.expiresAt ? new Date(user.expiresAt).toLocaleString() : 'Sin caducidad';
   const last = user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString() : '-';
-  const installUrl = `${location.origin}/u/${encodeURIComponent(user.token)}/manifest.json`;
+  const installUrl = installUrlFor(user.token);
   return `
     <div class="user">
       <h3>${escapeHtml(user.name)}</h3>
@@ -134,14 +187,14 @@ function userCard(user) {
       <div class="mono">${escapeHtml(installUrl)}</div>
       <div class="row" style="margin-top:10px">
         <button class="btn-dark" onclick="editUser('${user.id}')">Editar</button>
-        <button class="btn-dark" onclick="copyUrl('${installUrl.replace(/'/g, "\\'")}')">Copiar enlace</button>
+        <button class="btn-blue" onclick="copyUrl('${installUrl.replace(/'/g, "\\'")}')">Copiar enlace</button>
         <button class="btn-dark" onclick="resetIps('${user.id}')">Reset IPs</button>
         <button class="btn-red" onclick="deleteUser('${user.id}')">Eliminar</button>
       </div>
     </div>`;
 }
 
-function itemCard(item) {
+function renderItem(item) {
   const bg = item.poster || item.background || '';
   return `
     <div class="item">
@@ -154,64 +207,105 @@ function itemCard(item) {
     </div>`;
 }
 
-function escapeHtml(text) {
-  return String(text ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-}
-function escapeAttr(text){return String(text ?? '').replace(/'/g, '%27')}
-
-let usersCache = [];
-
 window.editUser = (id) => {
-  const user = usersCache.find(u => u.id === id);
-  if (user) fillForm(user);
+  const user = usersCache.find((entry) => entry.id === id);
+  if (!user) return;
+  fillForm(user);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
+
 window.copyUrl = async (url) => {
-  try { await navigator.clipboard.writeText(url); alert('Enlace copiado'); } catch { alert('No se pudo copiar'); }
+  try {
+    await navigator.clipboard.writeText(url);
+    setMsg('formMsg', 'Enlace copiado al portapapeles.', 'ok');
+  } catch {
+    setMsg('formMsg', 'No se pudo copiar el enlace.', 'err');
+  }
 };
+
 window.resetIps = async (id) => {
   if (!confirm('¿Resetear IPs de este usuario?')) return;
-  await api('/api/admin/users/reset-ips', { method: 'POST', body: { id } });
-  await loadAll();
+  try {
+    await api('/api/admin/users/reset-ips', { method: 'POST', body: { id } });
+    await loadAll();
+    setMsg('formMsg', 'IPs reseteadas.', 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
+  }
 };
+
 window.deleteUser = async (id) => {
   if (!confirm('¿Eliminar usuario?')) return;
-  await api('/api/admin/users/delete', { method: 'POST', body: { id } });
-  await loadAll();
+  try {
+    await api('/api/admin/users/delete', { method: 'POST', body: { id } });
+    await loadAll();
+    fillForm(null);
+    setMsg('formMsg', 'Usuario eliminado.', 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
+  }
 };
 
 async function loadUsers() {
   const data = await api('/api/admin/users');
   usersCache = data.users || [];
-  $('users').innerHTML = usersCache.length ? usersCache.map(userCard).join('') : '<p class="muted">No hay usuarios.</p>';
+  $('users').innerHTML = usersCache.length ? usersCache.map(renderUser).join('') : '<p class="muted">No hay usuarios.</p>';
 }
 
 async function loadCatalog() {
   const data = await api('/api/admin/catalog');
   const items = data.items || [];
-  $('catalog').innerHTML = items.length ? items.map(itemCard).join('') : '<p class="muted">No hay elementos en catálogo.</p>';
+  $('catalog').innerHTML = items.length ? items.map(renderItem).join('') : '<p class="muted">No hay elementos en catálogo.</p>';
   $('catalogJson').value = JSON.stringify({ items }, null, 2);
 }
 
+async function loadHealth() {
+  try {
+    const data = await api('/api/admin/health');
+    const redisOk = data.redis?.ok;
+    $('healthPill').textContent = redisOk ? 'Redis OK' : 'Redis con error';
+    $('healthPill').style.color = redisOk ? '#86efac' : '#fca5a5';
+    $('healthBox').innerHTML = `
+      <div>Storage: <strong>${escapeHtml(data.storage)}</strong></div>
+      <div>Redis: <strong>${escapeHtml(data.redis?.ok ? 'OK' : 'ERROR')}</strong></div>
+      <div>Detalle Redis: ${escapeHtml(data.redis?.message || data.redis?.ping || 'Sin detalle')}</div>
+      <div>Usuarios: ${escapeHtml(data.users)}</div>
+      <div>Items: ${escapeHtml(data.items)}</div>
+      <div>ENV Upstash URL: ${data.env?.hasUpstashUrl ? 'sí' : 'no'}</div>
+      <div>ENV Upstash Token: ${data.env?.hasUpstashToken ? 'sí' : 'no'}</div>`;
+  } catch (error) {
+    $('healthPill').textContent = 'Error health';
+    $('healthPill').style.color = '#fca5a5';
+    $('healthBox').textContent = error.message;
+  }
+}
+
 async function loadAll() {
-  await Promise.all([loadUsers(), loadCatalog()]);
+  await Promise.all([loadUsers(), loadCatalog(), loadHealth()]);
+}
+
+async function readSelectedFile(inputId) {
+  const file = $(inputId).files?.[0];
+  if (!file) throw new Error('Selecciona un archivo primero');
+  return await file.text();
 }
 
 $('loginBtn').onclick = async () => {
-  $('loginMsg').textContent = 'Entrando...';
+  setMsg('loginMsg', 'Entrando...', 'muted');
   try {
     await api('/api/admin/login', { method: 'POST', body: { username: $('loginUser').value, password: $('loginPass').value } });
     show('app');
     await loadAll();
-  } catch (e) {
-    $('loginMsg').textContent = e.message;
-    $('loginMsg').className = 'small err';
+  } catch (error) {
+    setMsg('loginMsg', error.message, 'err');
   }
 };
 
 $('logoutBtn').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }); show('login'); };
 $('refreshBtn').onclick = loadAll;
+$('testRedisBtn').onclick = loadHealth;
 $('clearFormBtn').onclick = () => fillForm(null);
+$('loadCatalogBtn').onclick = loadCatalog;
 
 $('saveUserBtn').onclick = async () => {
   try {
@@ -225,50 +319,58 @@ $('saveUserBtn').onclick = async () => {
       notes: $('notes').value
     };
     const data = await api('/api/admin/users', { method: 'POST', body });
-    $('formMsg').textContent = `Guardado. URL: ${data.installUrl}`;
-    $('formMsg').className = 'small ok';
     fillForm(null);
-    await loadAll();
-  } catch (e) {
-    $('formMsg').textContent = e.message;
-    $('formMsg').className = 'small err';
+    await loadUsers();
+    setMsg('formMsg', `Guardado. URL: ${data.installUrl}`, 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
   }
 };
 
 $('saveCatalogBtn').onclick = async () => {
   try {
-    const data = JSON.parse($('catalogJson').value || '{"items":[]}');
-    const res = await api('/api/admin/catalog', { method: 'POST', body: data });
-    $('catalogMsg').textContent = `Catálogo guardado: ${res.count} items`;
-    $('catalogMsg').className = 'small ok';
+    const payload = JSON.parse($('catalogJson').value || '{"items":[]}');
+    const data = await api('/api/admin/catalog', { method: 'POST', body: payload });
     await loadCatalog();
-  } catch (e) {
-    $('catalogMsg').textContent = e.message;
-    $('catalogMsg').className = 'small err';
+    setMsg('catalogMsg', `Catálogo guardado: ${data.count} items`, 'ok');
+  } catch (error) {
+    setMsg('catalogMsg', error.message, 'err');
   }
 };
 
 $('importM3UBtn').onclick = async () => {
   try {
-    const res = await api('/api/admin/catalog/import-m3u', { method: 'POST', body: { text: $('m3uText').value } });
-    $('catalogMsg').textContent = `M3U importada: ${res.count} items`;
-    $('catalogMsg').className = 'small ok';
+    const text = $('m3uText').value;
+    const data = await api('/api/admin/catalog/import-m3u', { method: 'POST', body: { text } });
     await loadCatalog();
-  } catch (e) {
-    $('catalogMsg').textContent = e.message;
-    $('catalogMsg').className = 'small err';
+    setMsg('catalogMsg', `M3U importada: ${data.count} items`, 'ok');
+  } catch (error) {
+    setMsg('catalogMsg', error.message, 'err');
+  }
+};
+
+$('importM3UFileBtn').onclick = async () => {
+  try {
+    const text = await readSelectedFile('m3uFile');
+    const data = await api('/api/admin/catalog/import-m3u', { method: 'POST', body: { text } });
+    $('m3uText').value = text.slice(0, 3000);
+    await loadCatalog();
+    setMsg('catalogMsg', `Archivo M3U importado: ${data.count} items`, 'ok');
+  } catch (error) {
+    setMsg('catalogMsg', error.message, 'err');
   }
 };
 
 $('clearDbBtn').onclick = async () => {
-  if (!confirm('¿Vaciar catálogo?')) return;
-  const res = await api('/api/admin/clear-db', { method: 'POST' });
-  $('catalogMsg').textContent = res.ok ? 'Catálogo vaciado' : 'Error';
-  $('catalogMsg').className = res.ok ? 'small ok' : 'small err';
-  await loadCatalog();
+  if (!confirm('¿Vaciar todo el catálogo?')) return;
+  try {
+    await api('/api/admin/clear-db', { method: 'POST' });
+    await loadCatalog();
+    setMsg('catalogMsg', 'Catálogo vaciado.', 'ok');
+  } catch (error) {
+    setMsg('catalogMsg', error.message, 'err');
+  }
 };
-
-$('loadCatalogBtn').onclick = loadCatalog;
 
 (async function init() {
   try {
