@@ -1,10 +1,11 @@
-
-const { sendJson, handleOptions, requireAddonToken, makeMeta, parseUrl, normalizeCategoryLabel } = require('./lib/common');
+const { sendJson, handleOptions, makeMeta, parseUrl, normalizeCategoryLabel } = require('./lib/common');
 const { getCatalog } = require('./lib/db');
+const { requirePrivateUserAccess } = require('./lib/users-db');
 
 module.exports = async (req, res) => {
   if (handleOptions(req, res)) return;
-  if (!requireAddonToken(req, res)) return;
+  const user = await requirePrivateUserAccess(req, res, sendJson, parseUrl);
+  if (!user) return;
 
   const url = parseUrl(req);
   const type = url.searchParams.get('type');
