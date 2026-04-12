@@ -10,47 +10,19 @@
     },
     {
       "source": "/manifest.json",
-      "destination": "/api"
+      "destination": "/api/manifest"
     },
     {
       "source": "/catalog/:type/:id.json",
-      "destination": "/api"
+      "destination": "/api/catalog?type=:type&id=:id"
     },
     {
       "source": "/meta/:type/:id.json",
-      "destination": "/api"
+      "destination": "/api/meta?type=:type&id=:id"
     },
     {
       "source": "/stream/:type/:id.json",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/login",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/catalog",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/users",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/clear-db",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/delete-item",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/import-m3u",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/admin/health",
-      "destination": "/api"
+      "destination": "/api/stream?type=:type&id=:id"
     }
   ]
 }
