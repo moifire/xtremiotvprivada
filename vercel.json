@@ -1,9 +1,18 @@
 {
   "version": 2,
+  "cleanUrls": false,
   "rewrites": [
-    { "source": "/", "destination": "/admin/index.html" },
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/u/:path*", "destination": "/api/index?__pathname=/u/:path*" },
-    { "source": "/api/:path*", "destination": "/api/index?__pathname=/api/:path*" }
+    {
+      "source": "/admin",
+      "destination": "/admin/index.html"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index?__pathname=/api/$1"
+    },
+    {
+      "source": "/u/(.*)",
+      "destination": "/api/index?__pathname=/u/$1"
+    }
   ]
 }
