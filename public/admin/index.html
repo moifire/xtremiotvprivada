@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MoiTube ULTRA PRO DB · Admin v5</title>
+  <title>MoiStremioTV · Admin v5.1</title>
   <style>
     :root{--bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;--red:#ef4444;--green:#22c55e;--blue:#2563eb;--gold:#f59e0b}
     *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top left,#3a0911 0,#050916 40%);color:var(--text);font-family:Inter,Arial,sans-serif}
@@ -37,7 +37,13 @@
     .client-lines{display:grid;gap:12px}.client-line{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
     .client-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.client-note{margin-top:12px;color:#94a3b8;font-size:12px}
     .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}.modal-backdrop.open{display:flex}.modal{width:min(860px,100%)}
-    @media (max-width:980px){.grid{grid-template-columns:1fr}.left-col{position:static}.top{flex-direction:column;align-items:stretch}.client-grid{grid-template-columns:1fr}.client-qr{min-height:180px}}
+    
+    .user-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+    .user-qr{background:#fff;border-radius:16px;padding:10px;display:flex;justify-content:center;align-items:center;min-width:112px;min-height:112px}
+    .user-qr canvas{width:92px;height:92px}
+    .warn-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin-left:8px;background:#3b2500;color:#fde68a;border:1px solid #b45309}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}.left-col{position:static}.top{flex-direction:column;align-items:stretch}.client-grid{grid-template-columns:1fr}.client-qr{min-height:180px}.user-head{flex-direction:column}.user-qr{min-width:unset;width:120px}}
+
   </style>
 </head>
 <body>
@@ -45,7 +51,7 @@
     <div class="card stack">
       <div>
         <h1>Entrar al panel</h1>
-        <div class="muted">Admin v5 con suscripciones PRO, QR y carga M3U por archivo.</div>
+        <div class="muted">Admin v5.1 con suscripciones PRO, QR y carga M3U por archivo.</div>
       </div>
       <input id="loginUser" placeholder="Usuario admin">
       <input id="loginPass" type="password" placeholder="Contraseña">
@@ -57,7 +63,7 @@
   <div id="appView" class="wrap hidden">
     <div class="top">
       <div>
-        <h1>MoiTube ULTRA PRO DB</h1>
+        <h1>MoiStremioTV</h1>
         <div class="muted">Panel privado con usuarios, suscripciones, renovación rápida, test Redis, QR y carga M3U por archivo.</div>
       </div>
       <div class="row">
@@ -159,7 +165,7 @@
       <div class="client-card" id="clientCard">
         <div class="client-head">
           <div>
-            <div class="client-brand">MoiTube ULTRA PRO</div>
+            <div class="client-brand">MoiStremioTV</div>
             <div class="client-sub">Perfil de cliente · Acceso privado Stremio</div>
           </div>
           <button class="btn-dark" id="closeClientModalBtn">Cerrar</button>
@@ -214,12 +220,38 @@ function planLabel(plan) { return ({mensual:'Mensual',trimestral:'Trimestral',an
 function planDays(plan) { return ({mensual:30,trimestral:90,anual:365,personalizado:30})[plan] || 30; }
 function toDateInput(iso) { return iso ? iso.slice(0,16) : ''; }
 
+
 function calcRemaining(user) {
-  if (!user?.expiresAt) return { days:null, label:'Sin caducidad', expired:false };
+  if (!user?.expiresAt) return {
+    days:null, hours:null, minutes:null, totalMs:null,
+    label:'Sin caducidad', exactLabel:'Sin caducidad', expired:false, warning:null
+  };
   const ms = new Date(user.expiresAt).getTime() - Date.now();
-  const days = Math.ceil(ms / 86400000);
-  return { days, label: days > 0 ? `${days} días restantes` : 'Caducado', expired: days <= 0 };
+  if (ms <= 0) return {
+    days:0, hours:0, minutes:0, totalMs:ms,
+    label:'Caducado', exactLabel:'Caducado', expired:true, warning:'caducado'
+  };
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const exactParts = [];
+  if (days) exactParts.push(`${days}d`);
+  if (hours || days) exactParts.push(`${hours}h`);
+  exactParts.push(`${minutes}m`);
+  let warning = null;
+  if (days < 1) warning = 'vence_hoy';
+  else if (days < 3) warning = 'urgente';
+  else if (days < 7) warning = 'pronto';
+  return {
+    days, hours, minutes, totalMs:ms,
+    label: `${days} días restantes`,
+    exactLabel: `${exactParts.join(' ')} restantes`,
+    expired:false,
+    warning
+  };
 }
+
 
 function applySelectedPlan() {
   const plan = $('plan').value;
@@ -229,7 +261,17 @@ function applySelectedPlan() {
   setMsg('formMsg', `Plan ${planLabel(plan)} aplicado al vencimiento.`, 'ok');
 }
 
+
+function warningLabel(left) {
+  if (left.expired) return 'Caducado';
+  if (left.warning === 'vence_hoy') return 'Vence hoy';
+  if (left.warning === 'urgente') return 'Caduca muy pronto';
+  if (left.warning === 'pronto') return 'Caduca pronto';
+  return '';
+}
+
 function fillForm(user = null) {
+
   $('userId').value = user?.id || '';
   $('name').value = user?.name || '';
   $('token').value = user?.token || '';
@@ -247,23 +289,31 @@ function setMsg(id, text, type) {
   el.className = `small ${type || 'muted'}`;
 }
 
+
 function renderUser(user) {
   const expires = user.expiresAt ? new Date(user.expiresAt).toLocaleString() : 'Sin caducidad';
   const last = user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString() : '-';
   const installUrl = installUrlFor(user.token);
   const left = calcRemaining(user);
   const enabled = !!user.enabled && !left.expired;
+  const warn = warningLabel(left);
   return `
     <div class="user">
-      <h3>${escapeHtml(user.name)}</h3>
-      <div class="small muted">${escapeHtml(user.token)}</div>
-      <div>
-        <span class="plan-badge">Plan: ${escapeHtml(planLabel(user.plan || 'mensual'))}</span>
-        <span class="status-badge ${enabled ? 'status-active' : 'status-expired'}">${enabled ? 'ACTIVO' : 'CADUCADO / INACTIVO'}</span>
-        <span class="days-badge">${escapeHtml(left.label)}</span>
+      <div class="user-head">
+        <div style="flex:1;min-width:0">
+          <h3>${escapeHtml(user.name)}</h3>
+          <div class="small muted">${escapeHtml(user.token)}</div>
+          <div>
+            <span class="plan-badge">Plan: ${escapeHtml(planLabel(user.plan || 'mensual'))}</span>
+            <span class="status-badge ${enabled ? 'status-active' : 'status-expired'}">${enabled ? 'ACTIVO' : 'CADUCADO / INACTIVO'}</span>
+            <span class="days-badge">${escapeHtml(left.exactLabel)}</span>
+            ${warn ? `<span class="warn-badge">${escapeHtml(warn)}</span>` : ''}
+          </div>
+          <p class="small">Caduca: ${escapeHtml(expires)}<br>Conexiones/IPs: ${(user.ips||[]).length}/${user.maxConnections}<br>Último acceso: ${escapeHtml(last)}<br>IPs: ${escapeHtml((user.ips||[]).join(', ') || '-')}<br>Notas: ${escapeHtml(user.notes || '-')}</p>
+          <div class="mono">${escapeHtml(installUrl)}</div>
+        </div>
+        <div class="user-qr"><canvas id="userQr-${escapeAttr(user.id)}" width="92" height="92"></canvas></div>
       </div>
-      <p class="small">Caduca: ${escapeHtml(expires)}<br>Conexiones/IPs: ${(user.ips||[]).length}/${user.maxConnections}<br>Último acceso: ${escapeHtml(last)}<br>IPs: ${escapeHtml((user.ips||[]).join(', ') || '-')}<br>Notas: ${escapeHtml(user.notes || '-')}</p>
-      <div class="mono">${escapeHtml(installUrl)}</div>
       <div class="row tight" style="margin-top:10px">
         <button class="btn-dark" onclick="editUser('${user.id}')">Editar</button>
         <button class="btn-blue" onclick="copyUrl('${installUrl}')">Copiar enlace</button>
@@ -280,6 +330,7 @@ function renderUser(user) {
       </div>
     </div>`;
 }
+
 
 function renderItem(item) {
   const bg = item.poster || item.background || '';
@@ -355,12 +406,24 @@ window.openClientCard = async (id) => {
     <div class="client-line"><span>Caduca</span><strong>${escapeHtml(user.expiresAt ? new Date(user.expiresAt).toLocaleDateString() : 'Sin fecha')}</strong></div>
     <div class="client-line"><span>Conexiones</span><strong>${escapeHtml(String(user.maxConnections || 1))}</strong></div>
     <div class="client-line"><span>Estado</span><strong>${escapeHtml((user.enabled !== false && !left.expired) ? 'Activo' : 'Caducado / inactivo')}</strong></div>
-    <div class="client-line"><span>Restante</span><strong>${escapeHtml(left.label)}</strong></div>`;
+    <div class="client-line"><span>Restante</span><strong>${escapeHtml(left.exactLabel)}</strong></div>`;
   $('clientModal').classList.add('open');
   await drawQr(installUrl);
 };
 
+
+async function renderUserQrs() {
+  for (const user of usersCache) {
+    const canvas = document.getElementById(`userQr-${user.id}`);
+    if (!canvas || !window.QRCode) continue;
+    try {
+      await QRCode.toCanvas(canvas, installUrlFor(user.token), { width: 92, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+    } catch {}
+  }
+}
+
 async function drawQr(text) {
+
   const canvas = $('qrCanvas');
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -388,18 +451,19 @@ $('downloadCardBtn').onclick = async () => {
   if (!clientCardUser) return;
   try {
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
-      <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+      <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1450" viewBox="0 0 1080 1450">
         <defs>
           <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#27113b"/><stop offset="55%" stop-color="#0c1328"/><stop offset="100%" stop-color="#0a1120"/></linearGradient>
         </defs>
-        <rect width="1080" height="1350" fill="url(#bg)"/>
-        <text x="70" y="120" font-family="Arial" font-size="58" font-weight="700" fill="#ffffff">MoiTube ULTRA PRO</text>
+        <rect width="1080" height="1450" fill="url(#bg)"/>
+        <text x="70" y="120" font-family="Arial" font-size="58" font-weight="700" fill="#ffffff">MoiStremioTV</text>
         <text x="70" y="170" font-family="Arial" font-size="28" fill="#cbd5e1">Perfil de cliente · Acceso privado Stremio</text>
         <rect x="70" y="250" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
         <rect x="70" y="390" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
         <rect x="70" y="530" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
         <rect x="70" y="670" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
         <rect x="70" y="810" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="950" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
         <text x="100" y="300" font-family="Arial" font-size="26" fill="#94a3b8">Usuario</text>
         <text x="100" y="338" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(clientCardUser.name || '')}</text>
         <text x="100" y="440" font-family="Arial" font-size="26" fill="#94a3b8">Plan</text>
@@ -410,10 +474,12 @@ $('downloadCardBtn').onclick = async () => {
         <text x="100" y="758" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(String(clientCardUser.maxConnections || 1))}</text>
         <text x="100" y="860" font-family="Arial" font-size="26" fill="#94a3b8">Estado</text>
         <text x="100" y="898" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(calcRemaining(clientCardUser).expired || clientCardUser.enabled===false ? 'Caducado / inactivo' : 'Activo')}</text>
+        <text x="100" y="1000" font-family="Arial" font-size="26" fill="#94a3b8">Restante</text>
+        <text x="100" y="1038" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(calcRemaining(clientCardUser).exactLabel)}</text>
         <image x="720" y="250" width="290" height="290" href="${$('qrCanvas').toDataURL('image/png')}"/>
         <text x="720" y="580" font-family="Arial" font-size="28" fill="#cbd5e1">Escanea para instalar</text>
-        <text x="70" y="1100" font-family="Arial" font-size="24" fill="#94a3b8">El QR abre directamente el addon en Stremio.</text>
-        <text x="70" y="1160" font-family="Arial" font-size="22" fill="#64748b">Panel v5 · Suscripciones PRO + QR</text>
+        <text x="70" y="1200" font-family="Arial" font-size="24" fill="#94a3b8">El QR abre directamente el addon en Stremio.</text>
+        <text x="70" y="1260" font-family="Arial" font-size="22" fill="#64748b">Panel v5.1 · Suscripciones PRO + QR</text>
       </svg>`;
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -434,6 +500,7 @@ async function loadUsers() {
   const data = await api('/api/admin/users');
   usersCache = data.users || [];
   $('users').innerHTML = usersCache.length ? usersCache.map(renderUser).join('') : '<p class="muted">No hay usuarios.</p>';
+  await renderUserQrs();
 }
 
 async function loadCatalog() {
@@ -455,6 +522,8 @@ async function loadHealth() {
       <div>Detalle Redis: ${escapeHtml(data.redis?.message || data.redis?.ping || 'Sin detalle')}</div>
       <div>Usuarios: ${escapeHtml(data.users)}</div>
       <div>Items: ${escapeHtml(data.items)}</div>
+      <div>Caducan pronto: ${escapeHtml(data.expiringSoon ?? 0)}</div>
+      <div>Caducados: ${escapeHtml(data.expiredUsers ?? 0)}</div>
       <div>ENV Upstash URL: ${data.env?.hasUpstashUrl ? 'sí' : 'no'}</div>
       <div>ENV Upstash Token: ${data.env?.hasUpstashToken ? 'sí' : 'no'}</div>`;
   } catch (error) {
