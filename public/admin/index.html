@@ -1,11 +1,619 @@
-
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="es">
 <head>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoiStremioTV · Admin v5.1</title>
+  <style>
+    :root{--bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;--red:#ef4444;--green:#22c55e;--blue:#2563eb;--gold:#f59e0b}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top left,#3a0911 0,#050916 40%);color:var(--text);font-family:Inter,Arial,sans-serif}
+    .wrap{max-width:1480px;margin:0 auto;padding:22px}
+    .grid{display:grid;grid-template-columns:minmax(360px,430px) minmax(0,1fr);gap:18px;align-items:start}
+    .left-col{position:sticky;top:18px;align-self:start}
+    .card{background:rgba(13,20,40,.98);border:1px solid var(--line);border-radius:22px;padding:18px;overflow:hidden}
+    h1,h2,h3{margin:0 0 14px} .muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:11px;color:var(--muted)} .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} .stack{display:grid;gap:12px}
+    label{display:block;margin:10px 0 6px;color:#dbe5f5} input,textarea,select{width:100%;max-width:100%;border-radius:16px;border:1px solid var(--line);background:#091121;color:var(--text);padding:12px 14px;font:inherit}
+    textarea{resize:vertical;min-height:110px;overflow:auto} #catalogJson{min-height:220px;max-height:340px} #m3uText{min-height:120px;max-height:240px}
+    .file-wrap{display:grid;gap:10px;min-width:0} .file-wrap input[type=file]{display:block;width:100%;overflow:hidden}
+    input[type=file]{padding:10px} input[type=checkbox]{width:auto;transform:translateY(1px)} button{border:0;border-radius:16px;padding:12px 18px;font-weight:700;color:white;cursor:pointer}
+    .btn-red{background:var(--red)} .btn-green{background:var(--green)} .btn-dark{background:#1b2a49} .btn-blue{background:var(--blue)} .btn-gold{background:var(--gold);color:#111827}
+    .hidden{display:none}.ok{color:#86efac}.err{color:#fca5a5}.warn{color:#fde68a}
+    .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#091121;border:1px solid var(--line);padding:10px;border-radius:14px;word-break:break-all}
+    .user{border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;background:#0a1120}
+    .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+    .item{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#0c1630,#0d1222);overflow:hidden}
+    .poster{height:210px;background:#0a1430 center/cover no-repeat;display:flex;align-items:flex-end;padding:12px}
+    .badge{font-size:12px;background:#fff;color:#111827;padding:4px 8px;border-radius:999px;font-weight:700}
+    .item-body{padding:12px}.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px}
+    .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+    .plan-badge{display:inline-block;background:#102444;color:#bfdbfe;border:1px solid #1e3a8a;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin:8px 0}
+    .status-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin-left:8px}
+    .status-active{background:#052e1a;color:#bbf7d0;border:1px solid #166534}.status-expired{background:#3f1014;color:#fecaca;border:1px solid #991b1b}
+    .days-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin-left:8px;background:#1b2a49;color:#dbeafe;border:1px solid #2f4f86}
+    .row.tight{gap:8px}.row.tight button{padding:10px 14px}.login{max-width:430px;margin:80px auto}
+    .client-card{background:linear-gradient(180deg,#1f163b,#0c1328 55%,#0a1120);border:1px solid #4338ca;border-radius:24px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.35)}
+    .client-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.client-brand{font-size:28px;font-weight:800;letter-spacing:.3px}.client-sub{color:#cbd5e1;font-size:14px}
+    .client-grid{display:grid;grid-template-columns:1fr 220px;gap:20px;align-items:center;margin-top:18px}.client-qr{background:#fff;border-radius:18px;padding:12px;display:flex;justify-content:center;align-items:center;min-height:220px}
+    .client-lines{display:grid;gap:12px}.client-line{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .client-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.client-note{margin-top:12px;color:#94a3b8;font-size:12px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}.modal-backdrop.open{display:flex}.modal{width:min(860px,100%)}
+    
+    .user-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+    .user-qr{background:#fff;border-radius:16px;padding:10px;display:flex;justify-content:center;align-items:center;min-width:112px;min-height:112px}
+    .user-qr canvas{width:92px;height:92px}
+    .warn-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;margin-left:8px;background:#3b2500;color:#fde68a;border:1px solid #b45309}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}.left-col{position:static}.top{flex-direction:column;align-items:stretch}.client-grid{grid-template-columns:1fr}.client-qr{min-height:180px}.user-head{flex-direction:column}.user-qr{min-width:unset;width:120px}}
+
+  </style>
 </head>
 <body>
-<div id="users"></div>
-<script src="app.js"></script>
+  <div id="loginView" class="wrap login hidden">
+    <div class="card stack">
+      <div>
+        <h1>Entrar al panel</h1>
+        <div class="muted">Admin v5.1 con suscripciones PRO, QR y carga M3U por archivo.</div>
+      </div>
+      <input id="loginUser" placeholder="Usuario admin">
+      <input id="loginPass" type="password" placeholder="Contraseña">
+      <button class="btn-red" id="loginBtn">Entrar</button>
+      <div id="loginMsg" class="small muted"></div>
+    </div>
+  </div>
+
+  <div id="appView" class="wrap hidden">
+    <div class="top">
+      <div>
+        <h1>MoiStremioTV</h1>
+        <div class="muted">Panel privado con usuarios, suscripciones, renovación rápida, test Redis, QR y carga M3U por archivo.</div>
+      </div>
+      <div class="row">
+        <span id="healthPill" class="pill">Comprobando Redis...</span>
+        <button class="btn-blue" id="testRedisBtn">Test Redis</button>
+        <button class="btn-dark" id="refreshBtn">Actualizar</button>
+        <button class="btn-dark" id="logoutBtn">Salir</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="stack left-col">
+        <div class="card">
+          <h2>Usuario / Suscripción</h2>
+          <input type="hidden" id="userId">
+          <label>Nombre</label>
+          <input id="name" placeholder="Ej: Cliente 1">
+          <label>Token</label>
+          <input id="token" placeholder="Vacío = automático">
+          <div class="row">
+            <div style="flex:1;min-width:160px">
+              <label>Caduca</label>
+              <input id="expiresAt" type="datetime-local">
+            </div>
+            <div style="width:150px">
+              <label>Máx. conexiones / IPs</label>
+              <input id="maxConnections" type="number" min="1" value="1">
+            </div>
+          </div>
+          <label>Plan</label>
+          <select id="plan">
+            <option value="mensual">Mensual</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="anual">Anual</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
+          <div class="row">
+            <button class="btn-gold" id="applyPlanBtn" type="button">Aplicar plan al vencimiento</button>
+            <span class="tiny">Mensual +30d · Trimestral +90d · Anual +365d</span>
+          </div>
+          <label><input id="enabled" type="checkbox" checked> Usuario activo</label>
+          <label>Notas</label>
+          <textarea id="notes" rows="4" placeholder="Observaciones, plan, paquete..."></textarea>
+          <div class="row" style="margin-top:12px">
+            <button class="btn-red" id="saveUserBtn">Guardar usuario</button>
+            <button class="btn-dark" id="clearFormBtn">Limpiar</button>
+          </div>
+          <div id="formMsg" class="small muted" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card stack">
+          <h2>Importar catálogo</h2>
+          <div class="file-wrap">
+            <label>JSON manual</label>
+            <textarea id="catalogJson" rows="5" placeholder='{"items": []}'></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn-green" id="saveCatalogBtn">Guardar JSON</button>
+              <button class="btn-dark" id="loadCatalogBtn">Ver catálogo actual</button>
+            </div>
+          </div>
+          <div class="file-wrap">
+            <label>Archivo M3U / M3U8</label>
+            <input id="m3uFile" type="file" accept=".m3u,.m3u8,text/plain">
+            <div class="row" style="margin-top:10px">
+              <button class="btn-dark" id="importM3UFileBtn">Subir archivo M3U</button>
+            </div>
+          </div>
+          <div class="file-wrap">
+            <label>Pegado manual M3U</label>
+            <textarea id="m3uText" rows="4" placeholder="#EXTM3U ..."></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn-dark" id="importM3UBtn">Importar texto M3U</button>
+              <button class="btn-red" id="clearDbBtn">Vaciar DB</button>
+            </div>
+          </div>
+          <div id="catalogMsg" class="small muted"></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h2>Estado del sistema</h2>
+          <div id="healthBox" class="small muted">Sin datos.</div>
+        </div>
+        <div class="card">
+          <h2>Lista de usuarios</h2>
+          <div id="users"></div>
+        </div>
+        <div class="card">
+          <h2>Catálogo online</h2>
+          <div id="catalog" class="catalog-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="clientModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="client-card" id="clientCard">
+        <div class="client-head">
+          <div>
+            <div class="client-brand">MoiStremioTV</div>
+            <div class="client-sub">Perfil de cliente · Acceso privado Stremio</div>
+          </div>
+          <button class="btn-dark" id="closeClientModalBtn">Cerrar</button>
+        </div>
+        <div class="client-grid">
+          <div>
+            <div class="client-lines" id="clientInfo"></div>
+            <div class="client-actions">
+              <button class="btn-blue" id="copyClientUrlBtn">Copiar acceso</button>
+              <button class="btn-green" id="downloadCardBtn">Descargar tarjeta</button>
+            </div>
+            <div class="client-note">Comparte esta tarjeta con tu cliente. El QR abre directamente el addon en Stremio.</div>
+          </div>
+          <div class="client-qr"><canvas id="qrCanvas" width="196" height="196"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let usersCache = [];
+let clientCardUser = null;
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    method: options.method || 'GET',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch {}
+  if (!res.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+
+function show(view) {
+  $('loginView').classList.toggle('hidden', view !== 'login');
+  $('appView').classList.toggle('hidden', view !== 'app');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+}
+
+function escapeAttr(value) { return String(value ?? '').replace(/'/g, '%27'); }
+function installUrlFor(token) { return `${location.origin}/u/${encodeURIComponent(token)}/manifest.json`; }
+function planLabel(plan) { return ({mensual:'Mensual',trimestral:'Trimestral',anual:'Anual',personalizado:'Personalizado'})[plan] || 'Mensual'; }
+function planDays(plan) { return ({mensual:30,trimestral:90,anual:365,personalizado:30})[plan] || 30; }
+function toDateInput(iso) { return iso ? iso.slice(0,16) : ''; }
+
+
+function calcRemaining(user) {
+  if (!user?.expiresAt) return {
+    days:null, hours:null, minutes:null, totalMs:null,
+    label:'Sin caducidad', exactLabel:'Sin caducidad', expired:false, warning:null
+  };
+  const ms = new Date(user.expiresAt).getTime() - Date.now();
+  if (ms <= 0) return {
+    days:0, hours:0, minutes:0, totalMs:ms,
+    label:'Caducado', exactLabel:'Caducado', expired:true, warning:'caducado'
+  };
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const exactParts = [];
+  if (days) exactParts.push(`${days}d`);
+  if (hours || days) exactParts.push(`${hours}h`);
+  exactParts.push(`${minutes}m`);
+  let warning = null;
+  if (days < 1) warning = 'vence_hoy';
+  else if (days < 3) warning = 'urgente';
+  else if (days < 7) warning = 'pronto';
+  return {
+    days, hours, minutes, totalMs:ms,
+    label: `${days} días restantes`,
+    exactLabel: `${exactParts.join(' ')} restantes`,
+    expired:false,
+    warning
+  };
+}
+
+
+function applySelectedPlan() {
+  const plan = $('plan').value;
+  const base = $('expiresAt').value ? new Date($('expiresAt').value).getTime() : Date.now();
+  const next = new Date(base + planDays(plan) * 86400000);
+  $('expiresAt').value = toDateInput(next.toISOString());
+  setMsg('formMsg', `Plan ${planLabel(plan)} aplicado al vencimiento.`, 'ok');
+}
+
+
+function warningLabel(left) {
+  if (left.expired) return 'Caducado';
+  if (left.warning === 'vence_hoy') return 'Vence hoy';
+  if (left.warning === 'urgente') return 'Caduca muy pronto';
+  if (left.warning === 'pronto') return 'Caduca pronto';
+  return '';
+}
+
+function fillForm(user = null) {
+
+  $('userId').value = user?.id || '';
+  $('name').value = user?.name || '';
+  $('token').value = user?.token || '';
+  $('expiresAt').value = toDateInput(user?.expiresAt || '');
+  $('maxConnections').value = user?.maxConnections || 1;
+  $('plan').value = user?.plan || 'mensual';
+  $('enabled').checked = user ? !!user.enabled : true;
+  $('notes').value = user?.notes || '';
+  $('formMsg').textContent = '';
+}
+
+function setMsg(id, text, type) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = `small ${type || 'muted'}`;
+}
+
+
+function renderUser(user) {
+  const expires = user.expiresAt ? new Date(user.expiresAt).toLocaleString() : 'Sin caducidad';
+  const last = user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString() : '-';
+  const installUrl = installUrlFor(user.token);
+  const left = calcRemaining(user);
+  const enabled = !!user.enabled && !left.expired;
+  const warn = warningLabel(left);
+  return `
+    <div class="user">
+      <div class="user-head">
+        <div style="flex:1;min-width:0">
+          <h3>${escapeHtml(user.name)}</h3>
+          <div class="small muted">${escapeHtml(user.token)}</div>
+          <div>
+            <span class="plan-badge">Plan: ${escapeHtml(planLabel(user.plan || 'mensual'))}</span>
+            <span class="status-badge ${enabled ? 'status-active' : 'status-expired'}">${enabled ? 'ACTIVO' : 'CADUCADO / INACTIVO'}</span>
+            <span class="days-badge">${escapeHtml(left.exactLabel)}</span>
+            ${warn ? `<span class="warn-badge">${escapeHtml(warn)}</span>` : ''}
+          </div>
+          <p class="small">Caduca: ${escapeHtml(expires)}<br>Conexiones/IPs: ${(user.ips||[]).length}/${user.maxConnections}<br>Último acceso: ${escapeHtml(last)}<br>IPs: ${escapeHtml((user.ips||[]).join(', ') || '-')}<br>Notas: ${escapeHtml(user.notes || '-')}</p>
+          <div class="mono">${escapeHtml(installUrl)}</div>
+        </div>
+        <div class="user-qr"><canvas id="userQr-${escapeAttr(user.id)}" width="92" height="92"></canvas></div>
+      </div>
+      <div class="row tight" style="margin-top:10px">
+        <button class="btn-dark" onclick="editUser('${user.id}')">Editar</button>
+        <button class="btn-blue" onclick="copyUrl('${installUrl}')">Copiar enlace</button>
+        <button class="btn-dark" onclick="resetIps('${user.id}')">Reset IPs</button>
+        <button class="btn-red" onclick="deleteUser('${user.id}')">Eliminar</button>
+      </div>
+      <div class="row tight" style="margin-top:8px">
+        <button class="btn-green" onclick="renewUser('${user.id}','mensual')">Renovar mes</button>
+        <button class="btn-green" onclick="renewUser('${user.id}','trimestral')">Renovar trimestre</button>
+        <button class="btn-green" onclick="renewUser('${user.id}','anual')">Renovar año</button>
+      </div>
+      <div class="row tight" style="margin-top:8px">
+        <button class="btn-gold" onclick="openClientCard('${user.id}')">Tarjeta + QR</button>
+      </div>
+    </div>`;
+}
+
+
+function renderItem(item) {
+  const bg = item.poster || item.background || '';
+  return `
+    <div class="item">
+      <div class="poster" style="background-image:url('${escapeAttr(bg)}')"><span class="badge">${escapeHtml(item.category || 'General')}</span></div>
+      <div class="item-body">
+        <h3>${escapeHtml(item.name)}</h3>
+        <div class="small muted">${escapeHtml(item.type || 'tv')} · ${escapeHtml(item.id)}</div>
+        <p class="small">${escapeHtml(item.description || '-')}</p>
+      </div>
+    </div>`;
+}
+
+window.editUser = (id) => {
+  const user = usersCache.find((entry) => entry.id === id);
+  if (!user) return;
+  fillForm(user);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.copyUrl = async (url) => {
+  try {
+    await navigator.clipboard.writeText(url);
+    setMsg('formMsg', 'Enlace copiado al portapapeles.', 'ok');
+  } catch {
+    setMsg('formMsg', 'No se pudo copiar el enlace.', 'err');
+  }
+};
+
+window.renewUser = async (id, plan) => {
+  try {
+    const data = await api('/api/admin/users/renew', { method: 'POST', body: { id, plan } });
+    await loadUsers();
+    setMsg('formMsg', `Usuario renovado: ${planLabel(plan)}. Nueva caducidad: ${new Date(data.user.expiresAt).toLocaleString()}`, 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
+  }
+};
+
+window.resetIps = async (id) => {
+  if (!confirm('¿Resetear IPs de este usuario?')) return;
+  try {
+    await api('/api/admin/users/reset-ips', { method: 'POST', body: { id } });
+    await loadAll();
+    setMsg('formMsg', 'IPs reseteadas.', 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
+  }
+};
+
+window.deleteUser = async (id) => {
+  if (!confirm('¿Eliminar usuario?')) return;
+  try {
+    await api('/api/admin/users/delete', { method: 'POST', body: { id } });
+    await loadAll();
+    fillForm(null);
+    setMsg('formMsg', 'Usuario eliminado.', 'ok');
+  } catch (error) {
+    setMsg('formMsg', error.message, 'err');
+  }
+};
+
+window.openClientCard = async (id) => {
+  const user = usersCache.find((entry) => entry.id === id);
+  if (!user) return;
+  clientCardUser = user;
+  const left = calcRemaining(user);
+  const installUrl = installUrlFor(user.token);
+  $('clientInfo').innerHTML = `
+    <div class="client-line"><span>Usuario</span><strong>${escapeHtml(user.name)}</strong></div>
+    <div class="client-line"><span>Plan</span><strong>${escapeHtml(planLabel(user.plan || 'mensual'))}</strong></div>
+    <div class="client-line"><span>Caduca</span><strong>${escapeHtml(user.expiresAt ? new Date(user.expiresAt).toLocaleDateString() : 'Sin fecha')}</strong></div>
+    <div class="client-line"><span>Conexiones</span><strong>${escapeHtml(String(user.maxConnections || 1))}</strong></div>
+    <div class="client-line"><span>Estado</span><strong>${escapeHtml((user.enabled !== false && !left.expired) ? 'Activo' : 'Caducado / inactivo')}</strong></div>
+    <div class="client-line"><span>Restante</span><strong>${escapeHtml(left.exactLabel)}</strong></div>`;
+  $('clientModal').classList.add('open');
+  await drawQr(installUrl);
+};
+
+
+async function renderUserQrs() {
+  for (const user of usersCache) {
+    const canvas = document.getElementById(`userQr-${user.id}`);
+    if (!canvas || !window.QRCode) continue;
+    try {
+      await QRCode.toCanvas(canvas, installUrlFor(user.token), { width: 92, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+    } catch {}
+  }
+}
+
+async function drawQr(text) {
+
+  const canvas = $('qrCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (!window.QRCode) {
+    ctx.fillStyle = '#111827';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('QR no disponible', 30, 100);
+    return;
+  }
+  await QRCode.toCanvas(canvas, text, { width: 196, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+}
+
+$('closeClientModalBtn').onclick = () => $('clientModal').classList.remove('open');
+$('clientModal').onclick = (e) => { if (e.target.id === 'clientModal') $('clientModal').classList.remove('open'); };
+$('copyClientUrlBtn').onclick = async () => {
+  if (!clientCardUser) return;
+  try {
+    await navigator.clipboard.writeText(installUrlFor(clientCardUser.token));
+    setMsg('formMsg', 'Acceso copiado.', 'ok');
+  } catch {
+    setMsg('formMsg', 'No se pudo copiar.', 'err');
+  }
+};
+$('downloadCardBtn').onclick = async () => {
+  if (!clientCardUser) return;
+  try {
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+      <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1450" viewBox="0 0 1080 1450">
+        <defs>
+          <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#27113b"/><stop offset="55%" stop-color="#0c1328"/><stop offset="100%" stop-color="#0a1120"/></linearGradient>
+        </defs>
+        <rect width="1080" height="1450" fill="url(#bg)"/>
+        <text x="70" y="120" font-family="Arial" font-size="58" font-weight="700" fill="#ffffff">MoiStremioTV</text>
+        <text x="70" y="170" font-family="Arial" font-size="28" fill="#cbd5e1">Perfil de cliente · Acceso privado Stremio</text>
+        <rect x="70" y="250" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="390" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="530" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="670" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="810" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <rect x="70" y="950" width="560" height="110" rx="22" fill="#121c33" stroke="#334155"/>
+        <text x="100" y="300" font-family="Arial" font-size="26" fill="#94a3b8">Usuario</text>
+        <text x="100" y="338" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(clientCardUser.name || '')}</text>
+        <text x="100" y="440" font-family="Arial" font-size="26" fill="#94a3b8">Plan</text>
+        <text x="100" y="478" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(planLabel(clientCardUser.plan || 'mensual'))}</text>
+        <text x="100" y="580" font-family="Arial" font-size="26" fill="#94a3b8">Caduca</text>
+        <text x="100" y="618" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(clientCardUser.expiresAt ? new Date(clientCardUser.expiresAt).toLocaleDateString() : 'Sin fecha')}</text>
+        <text x="100" y="720" font-family="Arial" font-size="26" fill="#94a3b8">Conexiones</text>
+        <text x="100" y="758" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(String(clientCardUser.maxConnections || 1))}</text>
+        <text x="100" y="860" font-family="Arial" font-size="26" fill="#94a3b8">Estado</text>
+        <text x="100" y="898" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(calcRemaining(clientCardUser).expired || clientCardUser.enabled===false ? 'Caducado / inactivo' : 'Activo')}</text>
+        <text x="100" y="1000" font-family="Arial" font-size="26" fill="#94a3b8">Restante</text>
+        <text x="100" y="1038" font-family="Arial" font-size="36" font-weight="700" fill="#ffffff">${escapeXml(calcRemaining(clientCardUser).exactLabel)}</text>
+        <image x="720" y="250" width="290" height="290" href="${$('qrCanvas').toDataURL('image/png')}"/>
+        <text x="720" y="580" font-family="Arial" font-size="28" fill="#cbd5e1">Escanea para instalar</text>
+        <text x="70" y="1200" font-family="Arial" font-size="24" fill="#94a3b8">El QR abre directamente el addon en Stremio.</text>
+        <text x="70" y="1260" font-family="Arial" font-size="22" fill="#64748b">Panel v5.1 · Suscripciones PRO + QR</text>
+      </svg>`;
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tarjeta-${slugify(clientCardUser.name || 'cliente')}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    setMsg('formMsg', 'No se pudo descargar la tarjeta.', 'err');
+  }
+};
+
+function escapeXml(v) { return String(v || '').replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c])); }
+function slugify(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
+async function loadUsers() {
+  const data = await api('/api/admin/users');
+  usersCache = data.users || [];
+  $('users').innerHTML = usersCache.length ? usersCache.map(renderUser).join('') : '<p class="muted">No hay usuarios.</p>';
+  await renderUserQrs();
+}
+
+async function loadCatalog() {
+  const data = await api('/api/admin/catalog');
+  const items = data.items || [];
+  $('catalog').innerHTML = items.length ? items.map(renderItem).join('') : '<p class="muted">No hay elementos en catálogo.</p>';
+  $('catalogJson').value = JSON.stringify({ items }, null, 2);
+}
+
+async function loadHealth() {
+  try {
+    const data = await api('/api/admin/health');
+    const redisOk = data.redis?.ok;
+    $('healthPill').textContent = redisOk ? 'Redis OK' : 'Redis con error';
+    $('healthPill').style.color = redisOk ? '#86efac' : '#fca5a5';
+    $('healthBox').innerHTML = `
+      <div>Storage: <strong>${escapeHtml(data.storage)}</strong></div>
+      <div>Redis: <strong>${escapeHtml(data.redis?.ok ? 'OK' : 'ERROR')}</strong></div>
+      <div>Detalle Redis: ${escapeHtml(data.redis?.message || data.redis?.ping || 'Sin detalle')}</div>
+      <div>Usuarios: ${escapeHtml(data.users)}</div>
+      <div>Items: ${escapeHtml(data.items)}</div>
+      <div>Caducan pronto: ${escapeHtml(data.expiringSoon ?? 0)}</div>
+      <div>Caducados: ${escapeHtml(data.expiredUsers ?? 0)}</div>
+      <div>ENV Upstash URL: ${data.env?.hasUpstashUrl ? 'sí' : 'no'}</div>
+      <div>ENV Upstash Token: ${data.env?.hasUpstashToken ? 'sí' : 'no'}</div>`;
+  } catch (error) {
+    $('healthPill').textContent = 'Error health';
+    $('healthPill').style.color = '#fca5a5';
+    $('healthBox').textContent = error.message;
+  }
+}
+
+async function loadAll() { await Promise.all([loadUsers(), loadCatalog(), loadHealth()]); }
+async function readSelectedFile(inputId) { const file = $(inputId).files?.[0]; if (!file) throw new Error('Selecciona un archivo primero'); return await file.text(); }
+
+$('loginBtn').onclick = async () => {
+  setMsg('loginMsg', 'Entrando...', 'muted');
+  try {
+    await api('/api/admin/login', { method: 'POST', body: { username: $('loginUser').value, password: $('loginPass').value } });
+    show('app');
+    await loadAll();
+  } catch (error) { setMsg('loginMsg', error.message, 'err'); }
+};
+$('logoutBtn').onclick = async () => { await api('/api/admin/logout', { method: 'POST' }); show('login'); };
+$('refreshBtn').onclick = loadAll;
+$('testRedisBtn').onclick = loadHealth;
+$('clearFormBtn').onclick = () => fillForm(null);
+$('loadCatalogBtn').onclick = loadCatalog;
+$('applyPlanBtn').onclick = applySelectedPlan;
+
+$('saveUserBtn').onclick = async () => {
+  try {
+    const body = {
+      id: $('userId').value || undefined,
+      name: $('name').value,
+      token: $('token').value,
+      expiresAt: $('expiresAt').value ? new Date($('expiresAt').value).toISOString() : null,
+      maxConnections: Number($('maxConnections').value || 1),
+      plan: $('plan').value,
+      enabled: $('enabled').checked,
+      notes: $('notes').value
+    };
+    const data = await api('/api/admin/users', { method: 'POST', body });
+    fillForm(null);
+    await loadUsers();
+    setMsg('formMsg', `Guardado. URL: ${data.installUrl}`, 'ok');
+  } catch (error) { setMsg('formMsg', error.message, 'err'); }
+};
+
+$('saveCatalogBtn').onclick = async () => {
+  try {
+    const payload = JSON.parse($('catalogJson').value || '{"items":[]}');
+    const data = await api('/api/admin/catalog', { method: 'POST', body: payload });
+    await loadCatalog();
+    setMsg('catalogMsg', `Catálogo guardado: ${data.count} items`, 'ok');
+  } catch (error) { setMsg('catalogMsg', error.message, 'err'); }
+};
+
+$('importM3UBtn').onclick = async () => {
+  try {
+    const text = $('m3uText').value;
+    const data = await api('/api/admin/catalog/import-m3u', { method: 'POST', body: { text } });
+    await loadCatalog();
+    setMsg('catalogMsg', `M3U importada: ${data.count} items`, 'ok');
+  } catch (error) { setMsg('catalogMsg', error.message, 'err'); }
+};
+
+$('importM3UFileBtn').onclick = async () => {
+  try {
+    const text = await readSelectedFile('m3uFile');
+    const data = await api('/api/admin/catalog/import-m3u', { method: 'POST', body: { text } });
+    $('m3uText').value = text.slice(0, 3000);
+    await loadCatalog();
+    setMsg('catalogMsg', `Archivo M3U importado: ${data.count} items`, 'ok');
+  } catch (error) { setMsg('catalogMsg', error.message, 'err'); }
+};
+
+$('clearDbBtn').onclick = async () => {
+  if (!confirm('¿Vaciar todo el catálogo?')) return;
+  try {
+    await api('/api/admin/clear-db', { method: 'POST' });
+    await loadCatalog();
+    setMsg('catalogMsg', 'Catálogo vaciado.', 'ok');
+  } catch (error) { setMsg('catalogMsg', error.message, 'err'); }
+};
+
+(async function init() {
+  try {
+    await api('/api/admin/session');
+    show('app');
+    await loadAll();
+  } catch { show('login'); }
+})();
+</script>
 </body>
 </html>
