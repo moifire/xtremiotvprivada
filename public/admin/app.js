@@ -235,6 +235,37 @@ function getAlertBadge(expiresAt) {
 function maskToken(token) { return token ? '*'.repeat(Math.max(8, token.length)) : ''; }
 function maskIp(_) { return '***.***.***.***'; }
 function maskUrl(url) { return url ? url.replace(/\/u\/([^/]+)\//, '/u/********/') : ''; }
+
+function normalizePlanBrand(plan) {
+  const value = String(plan || '').toLowerCase().trim();
+  if (value === 'monthly' || value === 'mensual' || value === 'mes' || value === '1 mes') return 'monthly';
+  if (value === 'quarterly' || value === 'trimestral' || value === '3 meses') return 'quarterly';
+  if (value === 'annual' || value === 'anual' || value === '12 meses') return 'annual';
+  return 'monthly';
+}
+function getBrandPlanClass(plan) {
+  const p = normalizePlanBrand(plan);
+  if (p === 'quarterly') return 'plan-quarter';
+  if (p === 'annual') return 'plan-year';
+  return 'plan-month';
+}
+function getBrandPlanLabel(plan) {
+  const p = normalizePlanBrand(plan);
+  if (p === 'quarterly') return 'PLAN TRIMESTRAL';
+  if (p === 'annual') return 'PLAN ANUAL';
+  return 'PLAN MENSUAL';
+}
+function getBrandDeviceClass(maxConnections) {
+  const n = Number(maxConnections || 1);
+  if (n <= 1) return 'device-green';
+  if (n === 2) return 'device-orange';
+  return 'device-red';
+}
+function getBrandDeviceLabel(maxConnections) {
+  const n = Number(maxConnections || 1);
+  return n <= 1 ? '1 DISPOSITIVO' : `${n} DISPOSITIVOS`;
+}
+
 function renderUserQr(containerId, text) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -254,7 +285,6 @@ function buildUserCard(user, demoMode=false) {
   const visibleUrl = demoMode ? maskUrl(installUrl) : installUrl;
   const visibleToken = demoMode ? maskToken(user.token || '') : (user.token || '');
   const currentConnections = Array.isArray(user.ips) ? user.ips.length : 0;
-  const qrId = `qr-${String(user.token || '').replace(/[^a-zA-Z0-9_-]/g,'_')}`;
   return `
     <div class="user-card">
       <div class="user-card-main">
@@ -278,17 +308,23 @@ function buildUserCard(user, demoMode=false) {
         </div>
         <div class="user-url-box">${escapeHtml(visibleUrl)}</div>
         <div class="user-actions ${demoMode ? 'is-hidden' : ''}">
-          <button class="btn" onclick="window.editUser('${escapeJs(user.token)}')">Editar</button>
-          <button class="btn primary" onclick="window.copyInstallUrl('${escapeJs(user.token)}')">Copiar enlace</button>
-          <button class="btn" onclick="window.resetUserIps('${escapeJs(user.token)}')">Reset IPs</button>
-          <button class="btn danger" onclick="window.deleteUser('${escapeJs(user.token)}')">Eliminar</button>
-          <button class="btn success" onclick="window.renewUser('${escapeJs(user.token)}','monthly')">Renovar mes</button>
-          <button class="btn success" onclick="window.renewUser('${escapeJs(user.token)}','quarterly')">Renovar trimestre</button>
-          <button class="btn success" onclick="window.renewUser('${escapeJs(user.token)}','annual')">Renovar año</button>
-          <button class="btn warning" onclick="window.showClientCard('${escapeJs(user.token)}')">Tarjeta + QR</button>
+          <button onclick="editUser('${escapeJs(user.token || '')}')">Editar</button>
+          <button onclick="copyInstallUrl('${escapeJs(user.token || '')}')">Copiar enlace</button>
+          <button onclick="resetUserIps('${escapeJs(user.token || '')}')">Reset IPs</button>
+          <button class="danger" onclick="deleteUser('${escapeJs(user.token || '')}')">Eliminar</button>
+          <button class="success" onclick="renewUser('${escapeJs(user.token || '')}','monthly')">Renovar mes</button>
+          <button class="success" onclick="renewUser('${escapeJs(user.token || '')}','quarterly')">Renovar trimestre</button>
+          <button class="success" onclick="renewUser('${escapeJs(user.token || '')}','annual')">Renovar año</button>
+          <button class="warning" onclick="showClientCard('${escapeJs(user.token || '')}')">Tarjeta + QR</button>
         </div>
       </div>
-      <div class="user-card-qr-col"><div id="${qrId}" class="user-qr-box"><div class="qr-fallback">Generando QR...</div></div></div>
+      <div class="user-card-qr-col">
+        <div class="user-brand-card ${getBrandPlanClass(user.plan)}">
+          <div class="brand-top">MoiStremioTV</div>
+          <div class="brand-main">${getBrandPlanLabel(user.plan)}</div>
+          <div class="brand-device ${getBrandDeviceClass(user.maxConnections)}">${getBrandDeviceLabel(user.maxConnections)}</div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -299,11 +335,6 @@ function renderUsersList(users, demoMode=false) {
     return;
   }
   container.innerHTML = users.map(u => buildUserCard(u, demoMode)).join('');
-  users.forEach(user => {
-    const qrId = `qr-${String(user.token || '').replace(/[^a-zA-Z0-9_-]/g,'_')}`;
-    const installUrl = `${location.origin}/u/${encodeURIComponent(user.token)}/manifest.json`;
-    renderUserQr(qrId, installUrl);
-  });
 }
 function labelPlan(plan) {
   return ({monthly:'Mensual', quarterly:'Trimestral', annual:'Anual', custom:'Personalizado'})[plan] || 'Personalizado';
