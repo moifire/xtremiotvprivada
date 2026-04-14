@@ -1,3 +1,4 @@
+let CATALOG_VERSION = Date.now();
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -189,6 +190,7 @@ async function handleAdmin(req, res, url, pathname) {
   if (pathname === '/api/admin/catalog' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const items = normalizeCatalog(Array.isArray(body.items) ? body.items : []);
+    CATALOG_VERSION = Date.now();
     await saveCatalog({ items });
     return sendJson(res, 200, { ok: true, count: items.length });
   }
@@ -198,11 +200,13 @@ async function handleAdmin(req, res, url, pathname) {
     const text = String(body.text || '');
     if (!text.trim()) return sendJson(res, 400, { error: 'Archivo M3U vacío' });
     const parsed = parseM3U(text);
+    CATALOG_VERSION = Date.now();
     await saveCatalog({ items: parsed });
     return sendJson(res, 200, { ok: true, count: parsed.length });
   }
 
   if (pathname === '/api/admin/clear-db' && req.method === 'POST') {
+    CATALOG_VERSION = Date.now();
     await saveCatalog({ items: [] });
     return sendJson(res, 200, { ok: true });
   }
@@ -233,7 +237,7 @@ async function serveManifest(req, res, token) {
 
   return sendJson(res, 200, {
     id: 'com.moistremiotv.private.v5',
-    version: '5.0.0',
+    version: '5.1.' + CATALOG_VERSION,
     name: 'MoiStremioTV Private Legal PRO v5',
     description: 'Catálogo privado con usuarios, caducidad, conexiones, QR y panel admin.',
     logo: '',
