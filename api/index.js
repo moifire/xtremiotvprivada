@@ -1,4 +1,3 @@
-let CATALOG_VERSION = Date.now();
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,16 +7,20 @@ const ADMIN_PASS = String(process.env.ADMIN_PASS || 'admin123');
 const SESSION_SECRET = String(process.env.SESSION_SECRET || 'change_me');
 const UPSTASH_URL = String(process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/$/, '');
 const UPSTASH_TOKEN = String(process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+
 const CATALOG_KEY = String(process.env.CATALOG_KEY || 'xtremio:catalog');
 const USERS_KEY = String(process.env.USERS_KEY || 'xtremio:users');
+const CACHE_INFO_KEY = String(process.env.CACHE_INFO_KEY || 'xtremio:cache-info');
 
 const FALLBACK_DIR = path.join(process.cwd(), 'data');
 const FALLBACK_CATALOG = path.join(FALLBACK_DIR, 'catalog.sample.json');
 const FALLBACK_USERS = path.join(FALLBACK_DIR, 'users.sample.json');
+const FALLBACK_CACHE_INFO = path.join(FALLBACK_DIR, 'cache-info.sample.json');
 
 export default async function handler(req, res) {
   try {
     setCors(res);
+
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       return res.end();
@@ -34,6 +37,7 @@ export default async function handler(req, res) {
     if (userMatch) {
       const token = decodeURIComponent(userMatch[1]);
       const endpoint = userMatch[2];
+
       const user = await getUserByToken(token);
       if (!user) return sendJson(res, 401, { error: 'Token no válido' });
       if (!isUserActive(user)) return sendJson(res, 401, { error: 'Usuario caducado o desactivado' });
@@ -46,6 +50,7 @@ export default async function handler(req, res) {
       if (endpoint.startsWith('catalog/')) return await serveCatalog(req, res, endpoint);
       if (endpoint.startsWith('meta/')) return await serveMeta(req, res, endpoint);
       if (endpoint.startsWith('stream/')) return await serveStream(req, res, endpoint);
+
       return sendJson(res, 404, { error: 'Ruta no encontrada' });
     }
 
@@ -58,10 +63,16 @@ export default async function handler(req, res) {
 async function handleAdmin(req, res, url, pathname) {
   if (pathname === '/api/admin/login' && req.method === 'POST') {
     const body = await readJsonBody(req);
+
     if (String(body.username || '') !== ADMIN_USER || String(body.password || '') !== ADMIN_PASS) {
       return sendJson(res, 401, { error: 'Credenciales incorrectas' });
     }
-    const token = createSessionToken({ username: ADMIN_USER, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+
+    const token = createSessionToken({
+      username: ADMIN_USER,
+      exp: Date.now() + 7 * 24 * 60 * 60 * 1000
+    });
+
     setAdminCookie(req, res, token, false);
     return sendJson(res, 200, { ok: true, username: ADMIN_USER });
   }
@@ -78,16 +89,30 @@ async function handleAdmin(req, res, url, pathname) {
     return sendJson(res, 200, { ok: true, username: session.username });
   }
 
+  if (pathname === '/api/admin/cache-info' && req.method === 'GET') {
+    const info = await getCacheInfo();
+    return sendJson(res, 200, info);
+  }
+
+  if (pathname === '/api/admin/refresh-cache' && req.method === 'POST') {
+    const info = await bumpCacheVersion();
+    return sendJson(res, 200, { ok: true, ...info });
+  }
+
   if (pathname === '/api/admin/health' && req.method === 'GET') {
     const test = await testRedisConnection();
     const users = await getUsers();
     const catalog = await getCatalog();
+    const cacheInfo = await getCacheInfo();
+
     const expiringSoon = users.filter((u) => {
       if (!u?.expiresAt || u?.enabled === false) return false;
       const ms = Date.parse(u.expiresAt) - Date.now();
       return ms > 0 && ms <= 7 * 24 * 60 * 60 * 1000;
     }).length;
+
     const expiredUsers = users.filter((u) => !isUserActive(u)).length;
+
     return sendJson(res, 200, {
       ok: true,
       storage: hasRedis() ? 'upstash' : 'archivo-local',
@@ -102,7 +127,8 @@ async function handleAdmin(req, res, url, pathname) {
       users: users.length,
       items: catalog.items.length,
       expiringSoon,
-      expiredUsers
+      expiredUsers,
+      cacheInfo
     });
   }
 
@@ -115,11 +141,18 @@ async function handleAdmin(req, res, url, pathname) {
   if (pathname === '/api/admin/users' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const users = await getUsers();
+
     const id = String(body.id || crypto.randomUUID());
     const existingIndex = users.findIndex((u) => u.id === id);
     const token = String(body.token || '').trim() || makeUserToken(body.name || 'cliente');
-    if (!String(body.name || '').trim()) return sendJson(res, 400, { error: 'El nombre es obligatorio' });
-    if (users.some((u) => u.token === token && u.id !== id)) return sendJson(res, 400, { error: 'Ese token ya existe' });
+
+    if (!String(body.name || '').trim()) {
+      return sendJson(res, 400, { error: 'El nombre es obligatorio' });
+    }
+
+    if (users.some((u) => u.token === token && u.id !== id)) {
+      return sendJson(res, 400, { error: 'Ese token ya existe' });
+    }
 
     const current = existingIndex >= 0 ? users[existingIndex] : null;
     const next = {
@@ -141,6 +174,7 @@ async function handleAdmin(req, res, url, pathname) {
     else users.push(next);
 
     await saveUsers(users);
+
     return sendJson(res, 200, {
       ok: true,
       user: next,
@@ -152,14 +186,25 @@ async function handleAdmin(req, res, url, pathname) {
     const body = await readJsonBody(req);
     const users = await getUsers();
     const idx = users.findIndex((u) => u.id === String(body.id || ''));
+
     if (idx < 0) return sendJson(res, 404, { error: 'Usuario no encontrado' });
+
     const plan = normalizePlan(body.plan || users[idx].plan);
     const days = Number(body.days || planDays(plan));
-    if (!days || days < 1) return sendJson(res, 400, { error: 'Renovación no válida' });
-    const baseTs = users[idx].expiresAt && Date.parse(users[idx].expiresAt) > Date.now() ? Date.parse(users[idx].expiresAt) : Date.now();
+
+    if (!days || days < 1) {
+      return sendJson(res, 400, { error: 'Renovación no válida' });
+    }
+
+    const baseTs =
+      users[idx].expiresAt && Date.parse(users[idx].expiresAt) > Date.now()
+        ? Date.parse(users[idx].expiresAt)
+        : Date.now();
+
     users[idx].expiresAt = new Date(baseTs + days * 24 * 60 * 60 * 1000).toISOString();
     users[idx].plan = plan;
     users[idx].updatedAt = new Date().toISOString();
+
     await saveUsers(users);
     return sendJson(res, 200, { ok: true, user: users[idx] });
   }
@@ -176,9 +221,12 @@ async function handleAdmin(req, res, url, pathname) {
     const body = await readJsonBody(req);
     const users = await getUsers();
     const idx = users.findIndex((u) => u.id === String(body.id || ''));
+
     if (idx < 0) return sendJson(res, 404, { error: 'Usuario no encontrado' });
+
     users[idx].ips = [];
     users[idx].updatedAt = new Date().toISOString();
+
     await saveUsers(users);
     return sendJson(res, 200, { ok: true });
   }
@@ -190,34 +238,44 @@ async function handleAdmin(req, res, url, pathname) {
   if (pathname === '/api/admin/catalog' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const items = normalizeCatalog(Array.isArray(body.items) ? body.items : []);
-    CATALOG_VERSION = Date.now();
     await saveCatalog({ items });
-    return sendJson(res, 200, { ok: true, count: items.length });
+    const cacheInfo = await bumpCacheVersion();
+    return sendJson(res, 200, { ok: true, count: items.length, cacheInfo });
   }
 
   if (pathname === '/api/admin/catalog/import-m3u' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const text = String(body.text || '');
-    if (!text.trim()) return sendJson(res, 400, { error: 'Archivo M3U vacío' });
+
+    if (!text.trim()) {
+      return sendJson(res, 400, { error: 'Archivo M3U vacío' });
+    }
+
     const parsed = parseM3U(text);
-    CATALOG_VERSION = Date.now();
     await saveCatalog({ items: parsed });
-    return sendJson(res, 200, { ok: true, count: parsed.length });
+    const cacheInfo = await bumpCacheVersion();
+
+    return sendJson(res, 200, {
+      ok: true,
+      count: parsed.length,
+      cacheInfo
+    });
   }
 
   if (pathname === '/api/admin/clear-db' && req.method === 'POST') {
-    CATALOG_VERSION = Date.now();
     await saveCatalog({ items: [] });
-    return sendJson(res, 200, { ok: true });
+    const cacheInfo = await bumpCacheVersion();
+    return sendJson(res, 200, { ok: true, cacheInfo });
   }
 
   return sendJson(res, 404, { error: 'Ruta admin no encontrada' });
 }
 
-
 function normalizePlan(value) {
   const plan = String(value || 'mensual').trim().toLowerCase();
-  if (plan === 'mensual' || plan === 'trimestral' || plan === 'anual' || plan === 'personalizado') return plan;
+  if (plan === 'mensual' || plan === 'trimestral' || plan === 'anual' || plan === 'personalizado') {
+    return plan;
+  }
   return 'mensual';
 }
 
@@ -230,14 +288,26 @@ function planDays(plan) {
 
 async function serveManifest(req, res, token) {
   const catalog = await getCatalog();
-  const categories = unique(catalog.items.filter((item) => (item.type || 'tv') === 'tv').map((item) => item.category || 'General'));
+  const cacheInfo = await getCacheInfo();
+
+  const categories = unique(
+    catalog.items
+      .filter((item) => (item.type || 'tv') === 'tv')
+      .map((item) => item.category || 'General')
+  );
+
   const tvCatalogs = categories.length
-    ? categories.map((category) => ({ type: 'tv', id: slug(category), name: `TV · ${category}`, extra: [{ name: 'search' }] }))
+    ? categories.map((category) => ({
+        type: 'tv',
+        id: slug(category),
+        name: `TV · ${category}`,
+        extra: [{ name: 'search' }]
+      }))
     : [{ type: 'tv', id: 'all', name: 'TV', extra: [{ name: 'search' }] }];
 
   return sendJson(res, 200, {
     id: 'com.moistremiotv.private.v5',
-    version: '5.1.' + CATALOG_VERSION,
+    version: `5.1.${Number(cacheInfo?.version || 1)}`,
     name: 'MoiStremioTV Private Legal PRO v5',
     description: 'Catálogo privado con usuarios, caducidad, conexiones, QR y panel admin.',
     logo: '',
@@ -248,7 +318,10 @@ async function serveManifest(req, res, token) {
       { type: 'movie', id: 'movies', name: 'Películas', extra: [{ name: 'search' }] },
       { type: 'series', id: 'series', name: 'Series', extra: [{ name: 'search' }] }
     ],
-    behaviorHints: { configurable: false, configurationRequired: false },
+    behaviorHints: {
+      configurable: false,
+      configurationRequired: false
+    },
     transportUrl: `${siteBase(req)}/u/${encodeURIComponent(token)}`
   });
 }
@@ -256,16 +329,27 @@ async function serveManifest(req, res, token) {
 async function serveCatalog(req, res, endpoint) {
   const match = endpoint.match(/^catalog\/([^/]+)\/([^/.]+)\.json$/);
   if (!match) return sendJson(res, 404, { error: 'Ruta de catálogo no válida' });
+
   const [, type, catalogId] = match;
   const url = getRequestUrl(req);
   const search = String(url.searchParams.get('search') || '').toLowerCase().trim();
+
   const catalog = await getCatalog();
   let items = catalog.items.filter((item) => (item.type || 'tv') === type);
 
-  if (type === 'tv' && catalogId !== 'all') items = items.filter((item) => slug(item.category || 'General') === catalogId);
+  if (type === 'tv' && catalogId !== 'all') {
+    items = items.filter((item) => slug(item.category || 'General') === catalogId);
+  }
+
   if (type === 'movie' && catalogId !== 'movies') items = [];
   if (type === 'series' && catalogId !== 'series') items = [];
-  if (search) items = items.filter((item) => `${item.name} ${item.description || ''} ${item.category || ''}`.toLowerCase().includes(search));
+  if (search) {
+    items = items.filter((item) =>
+      `${item.name} ${item.description || ''} ${item.category || ''}`
+        .toLowerCase()
+        .includes(search)
+    );
+  }
 
   return sendJson(res, 200, { metas: items.map(toMetaPreview) });
 }
@@ -273,8 +357,12 @@ async function serveCatalog(req, res, endpoint) {
 async function serveMeta(req, res, endpoint) {
   const match = endpoint.match(/^meta\/([^/]+)\/([^/.]+)\.json$/);
   if (!match) return sendJson(res, 404, { error: 'Ruta meta no válida' });
+
   const [, type, id] = match;
-  const item = (await getCatalog()).items.find((entry) => entry.id === id && (entry.type || 'tv') === type);
+  const item = (await getCatalog()).items.find(
+    (entry) => entry.id === id && (entry.type || 'tv') === type
+  );
+
   if (!item) return sendJson(res, 404, { error: 'Item no encontrado' });
   return sendJson(res, 200, { meta: toMetaFull(item) });
 }
@@ -282,12 +370,29 @@ async function serveMeta(req, res, endpoint) {
 async function serveStream(req, res, endpoint) {
   const match = endpoint.match(/^stream\/([^/]+)\/([^/.]+)\.json$/);
   if (!match) return sendJson(res, 404, { error: 'Ruta stream no válida' });
+
   const [, type, id] = match;
-  const item = (await getCatalog()).items.find((entry) => entry.id === id && (entry.type || 'tv') === type);
+  const item = (await getCatalog()).items.find(
+    (entry) => entry.id === id && (entry.type || 'tv') === type
+  );
+
   if (!item) return sendJson(res, 404, { error: 'Item no encontrado' });
+
   const streams = [];
-  if (item.streamUrl) streams.push({ title: item.streamTitle || item.name, url: item.streamUrl, behaviorHints: { notWebReady: false } });
-  if (item.ytId) streams.push({ title: item.name, ytId: item.ytId });
+  if (item.streamUrl) {
+    streams.push({
+      title: item.streamTitle || item.name,
+      url: item.streamUrl,
+      behaviorHints: { notWebReady: false }
+    });
+  }
+  if (item.ytId) {
+    streams.push({
+      title: item.name,
+      ytId: item.ytId
+    });
+  }
+
   return sendJson(res, 200, { streams });
 }
 
@@ -323,8 +428,12 @@ function normalizeCatalog(items) {
     posterShape: String(item.posterShape || 'regular'),
     background: String(item.background || ''),
     description: String(item.description || ''),
-    genres: Array.isArray(item.genres) ? item.genres.map(String) : [String(item.category || 'General')],
-    category: String(item.category || (Array.isArray(item.genres) && item.genres[0]) || 'General'),
+    genres: Array.isArray(item.genres)
+      ? item.genres.map(String)
+      : [String(item.category || 'General')],
+    category: String(
+      item.category || (Array.isArray(item.genres) && item.genres[0]) || 'General'
+    ),
     streamUrl: String(item.streamUrl || item.url || ''),
     streamTitle: String(item.streamTitle || ''),
     ytId: String(item.ytId || ''),
@@ -343,8 +452,11 @@ function parseM3U(text) {
     if (!line) continue;
 
     if (line.startsWith('#EXTINF:')) {
-      const name = line.includes(',') ? line.slice(line.indexOf(',') + 1).trim() : `Canal ${items.length + 1}`;
+      const name = line.includes(',')
+        ? line.slice(line.indexOf(',') + 1).trim()
+        : `Canal ${items.length + 1}`;
       const category = extractM3UAttr(line, 'group-title') || 'General';
+
       current = {
         id: `xtv_${items.length + 1}`,
         type: 'tv',
@@ -390,16 +502,26 @@ function isUserActive(user) {
 async function trackUserConnection(userId, ip) {
   const users = await getUsers();
   const index = users.findIndex((user) => user.id === userId);
+
   if (index < 0) return { ok: false, error: 'Usuario no encontrado' };
+
   const user = users[index];
   const currentIps = Array.isArray(user.ips) ? user.ips : [];
+
   if (ip && !currentIps.includes(ip)) {
     if (currentIps.length >= Number(user.maxConnections || 1)) {
       return { ok: false, error: 'Máximo de conexiones/IPs alcanzado' };
     }
     currentIps.push(ip);
   }
-  users[index] = { ...user, ips: currentIps, lastAccessAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+
+  users[index] = {
+    ...user,
+    ips: currentIps,
+    lastAccessAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
   await saveUsers(users);
   return { ok: true };
 }
@@ -424,7 +546,32 @@ async function getCatalog() {
 }
 
 async function saveCatalog(catalog) {
-  await saveJson(CATALOG_KEY, { items: normalizeCatalog(Array.isArray(catalog.items) ? catalog.items : []) }, FALLBACK_CATALOG);
+  await saveJson(
+    CATALOG_KEY,
+    { items: normalizeCatalog(Array.isArray(catalog.items) ? catalog.items : []) },
+    FALLBACK_CATALOG
+  );
+}
+
+async function getCacheInfo() {
+  const fallback = { version: 1, updatedAt: null };
+  const stored = await loadJson(CACHE_INFO_KEY, fallback, FALLBACK_CACHE_INFO);
+
+  return {
+    version: Number(stored?.version || 1),
+    updatedAt: stored?.updatedAt || null
+  };
+}
+
+async function bumpCacheVersion() {
+  const current = await getCacheInfo();
+  const next = {
+    version: Number(current.version || 1) + 1,
+    updatedAt: new Date().toISOString()
+  };
+
+  await saveJson(CACHE_INFO_KEY, next, FALLBACK_CACHE_INFO);
+  return next;
 }
 
 async function loadJson(key, fallback, filePath) {
@@ -448,6 +595,7 @@ async function saveJson(key, value, filePath) {
     await redisSet(key, JSON.stringify(value));
     return;
   }
+
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
 }
@@ -466,17 +614,33 @@ function hasRedis() {
 
 async function testRedisConnection() {
   if (!hasRedis()) {
-    return { ok: false, mode: 'archivo-local', message: 'Faltan UPSTASH_REDIS_REST_URL o UPSTASH_REDIS_REST_TOKEN' };
+    return {
+      ok: false,
+      mode: 'archivo-local',
+      message: 'Faltan UPSTASH_REDIS_REST_URL o UPSTASH_REDIS_REST_TOKEN'
+    };
   }
+
   try {
     const ping = await redisCommand(['PING']);
     const testKey = `xtremio:test:${Date.now()}`;
+
     await redisCommand(['SET', testKey, 'ok']);
     const got = await redisCommand(['GET', testKey]);
     await redisCommand(['DEL', testKey]);
-    return { ok: ping === 'PONG' && got === 'ok', mode: 'upstash', ping, readback: got };
+
+    return {
+      ok: ping === 'PONG' && got === 'ok',
+      mode: 'upstash',
+      ping,
+      readback: got
+    };
   } catch (error) {
-    return { ok: false, mode: 'upstash', message: error?.message || 'Error conectando con Redis' };
+    return {
+      ok: false,
+      mode: 'upstash',
+      message: error?.message || 'Error conectando con Redis'
+    };
   }
 }
 
@@ -497,8 +661,12 @@ async function redisCommand(command) {
     },
     body: JSON.stringify(command)
   });
+
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.error) throw new Error(data.error || `Upstash error ${response.status}`);
+  if (!response.ok || data.error) {
+    throw new Error(data.error || `Upstash error ${response.status}`);
+  }
+
   return data.result ?? null;
 }
 
@@ -507,13 +675,20 @@ function getRequestUrl(req) {
 }
 
 function getOriginalPath(req, url) {
-  return String(url.searchParams.get('__pathname') || req.headers['x-original-path'] || req.headers['x-rewrite-path'] || url.pathname);
+  return String(
+    url.searchParams.get('__pathname') ||
+      req.headers['x-original-path'] ||
+      req.headers['x-rewrite-path'] ||
+      url.pathname
+  );
 }
 
 function sendJson(res, statusCode, body) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.end(JSON.stringify(body));
 }
 
@@ -526,10 +701,12 @@ function setCors(res) {
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
+
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', () => {
       const text = Buffer.concat(chunks).toString('utf8');
       if (!text) return resolve({});
+
       try {
         resolve(JSON.parse(text));
       } catch {
@@ -543,11 +720,13 @@ function readJsonBody(req) {
 function getCookies(req) {
   const cookieHeader = String(req.headers.cookie || '');
   const cookies = {};
+
   for (const part of cookieHeader.split(';')) {
     const [name, ...rest] = part.trim().split('=');
     if (!name) continue;
     cookies[name] = decodeURIComponent(rest.join('='));
   }
+
   return cookies;
 }
 
@@ -559,10 +738,13 @@ function createSessionToken(payload) {
 
 function verifySessionToken(token) {
   if (!token || !token.includes('.')) return null;
+
   const [body, signature] = token.split('.');
   const expected = crypto.createHmac('sha256', SESSION_SECRET).update(body).digest('hex');
+
   if (signature.length !== expected.length) return null;
   if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (payload.exp && Date.now() > payload.exp) return null;
@@ -581,7 +763,10 @@ function setAdminCookie(req, res, token, clear = false) {
   const secure = String(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
   const value = clear ? '' : encodeURIComponent(token);
   const maxAge = clear ? '; Max-Age=0' : `; Max-Age=${7 * 24 * 60 * 60}`;
-  res.setHeader('Set-Cookie', `xt_admin=${value}; Path=/; HttpOnly; SameSite=Lax${secure}${maxAge}`);
+  res.setHeader(
+    'Set-Cookie',
+    `xt_admin=${value}; Path=/; HttpOnly; SameSite=Lax${secure}${maxAge}`
+  );
 }
 
 function siteBase(req) {
@@ -592,17 +777,21 @@ function siteBase(req) {
 
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
   return req.socket?.remoteAddress || '';
 }
 
 function slug(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'general';
+  return (
+    String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'general'
+  );
 }
 
 function unique(values) {
