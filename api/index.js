@@ -1,25 +1,3 @@
-
-const CACHE_INFO_KEY = process.env.CACHE_INFO_KEY || 'moistremiotv:cache:info';
-
-async function readCacheInfo(storageGet) {
-  try {
-    const raw = await storageGet(CACHE_INFO_KEY);
-    if (!raw) return { cacheVersion: Date.now(), lastUpdatedAt: null };
-    if (typeof raw === 'string') {
-      try { return JSON.parse(raw); } catch { return { cacheVersion: Date.now(), lastUpdatedAt: null }; }
-    }
-    return raw;
-  } catch {
-    return { cacheVersion: Date.now(), lastUpdatedAt: null };
-  }
-}
-
-async function writeCacheInfo(storageSet) {
-  const payload = { cacheVersion: Date.now(), lastUpdatedAt: new Date().toISOString() };
-  await storageSet(CACHE_INFO_KEY, payload);
-  return payload;
-}
-
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
