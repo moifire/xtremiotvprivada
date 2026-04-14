@@ -102,3 +102,14 @@ textarea{resize:vertical}
 .device-green{color:#86efac}
 .device-orange{color:#fdba74}
 .device-red{color:#fca5a5}
+
+
+.cache-info-inline{
+  margin-top:8px;
+  font-size:13px;
+  color:#a9b7d0;
+}
+#btn-force-refresh{
+  background:#16a34a;
+  color:#fff;
+}

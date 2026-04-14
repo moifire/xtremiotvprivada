@@ -1,4 +1,71 @@
 
+window.__catalogCacheVersion = null;
+window.__catalogLastUpdatedAt = null;
+
+function cacheBustValue() {
+  return window.__catalogCacheVersion || Date.now();
+}
+function withCacheBust(url) {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}v=${encodeURIComponent(cacheBustValue())}`;
+}
+async function fetchJsonNoCache(url, options = {}) {
+  const response = await fetch(withCacheBust(url), {
+    cache: 'no-store',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.json();
+}
+async function refreshCatalogVersion() {
+  try {
+    const data = await fetchJsonNoCache('/api/admin/cache-info');
+    window.__catalogCacheVersion = data.cacheVersion || Date.now();
+    window.__catalogLastUpdatedAt = data.lastUpdatedAt || null;
+    const infoEl = document.getElementById('cache-info-inline');
+    if (infoEl) {
+      infoEl.textContent = `Versión catálogo: ${window.__catalogCacheVersion} · Última actualización: ${window.__catalogLastUpdatedAt ? new Date(window.__catalogLastUpdatedAt).toLocaleString() : '-'}`;
+    }
+    return data;
+  } catch (e) {
+    const infoEl = document.getElementById('cache-info-inline');
+    if (infoEl) infoEl.textContent = 'No se pudo leer la versión de caché.';
+    return null;
+  }
+}
+async function forceRefreshCatalog() {
+  const btn = document.getElementById('btn-force-refresh');
+  const old = btn ? btn.textContent : '';
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
+    const response = await fetch('/api/admin/refresh-cache', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    window.__catalogCacheVersion = data.cacheVersion || Date.now();
+    window.__catalogLastUpdatedAt = data.lastUpdatedAt || new Date().toISOString();
+    await refreshCatalogVersion();
+    if (typeof loadAll === 'function') await loadAll(true);
+    alert('Catálogo actualizado. Cierra y abre Stremio si seguía mostrando datos antiguos.');
+  } catch (e) {
+    alert(`No se pudo forzar la actualización: ${e.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = old || 'Actualizar catálogo'; }
+  }
+}
+
+
 const state = {
   authed: false,
   demoMode: false,
