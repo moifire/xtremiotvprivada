@@ -319,9 +319,17 @@ async function serveManifest(req, res, token) {
       { type: 'series', id: 'series', name: 'Series', extra: [{ name: 'search' }] }
     ],
     behaviorHints: {
-      configurable: false,
+      configurable: true,
       configurationRequired: false
     },
+    config: [
+      {
+        key: 'panel',
+        type: 'text',
+        title: 'Abrir panel MoiStremioTV',
+        required: false
+      }
+    ],
     transportUrl: `${siteBase(req)}/u/${encodeURIComponent(token)}`
   });
 }
