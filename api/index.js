@@ -810,33 +810,31 @@ function slug(value) {
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
+export default async function handler(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const pathname = url.pathname;
+
+  if (pathname.includes('/configure')) {
+    return serveConfigurePage(res);
+  }
+
+  res.statusCode = 200;
+  res.end(JSON.stringify({ ok: true }));
+}
+
 function serveConfigurePage(res) {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
-  res.end(`
-<!DOCTYPE html>
+  res.end(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>MoiStremioTV</title>
 <style>
-body {
-  background:#0b0f1a;
-  color:white;
-  font-family:Arial;
-  text-align:center;
-  padding:40px;
-}
-button {
-  padding:12px 20px;
-  border:none;
-  border-radius:10px;
-  margin:10px;
-  cursor:pointer;
-}
-.green {background:#22c55e;color:white;}
-.blue {background:#3b82f6;color:white;}
+body{background:#0b0f1a;color:white;font-family:Arial;text-align:center;padding:40px;}
+button{padding:12px 20px;border:none;border-radius:10px;margin:10px;cursor:pointer;}
+.green{background:#22c55e;color:white;}
 </style>
 </head>
 
@@ -844,8 +842,9 @@ button {
 
 <h1>⚙️ MoiStremioTV</h1>
 
+<p>Panel cliente</p>
+
 <button class="green" onclick="update()">Actualizar catálogo</button>
-<button class="blue" onclick="openPanel()">Panel admin</button>
 
 <p id="msg"></p>
 
@@ -858,13 +857,8 @@ async function update(){
     document.getElementById('msg').innerText='❌ Error';
   }
 }
-
-function openPanel(){
-  window.location.href='/admin';
-}
 </script>
 
 </body>
-</html>
-`);
+</html>`);
 }
