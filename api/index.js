@@ -339,8 +339,7 @@ async function serveManifest(req, res, token) {
         title: 'Abrir panel MoiStremioTV',
         required: false
       }
-    ],
-    transportUrl: `${siteBase(req)}/u/${encodeURIComponent(token)}`
+    ]
   });
 }
 
@@ -815,29 +814,15 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 function calcRemainingForClient(user) {
-  if (!user?.expiresAt) {
-    return { label: 'Sin caducidad', expired: false };
-  }
-
+  if (!user?.expiresAt) return { label: 'Sin caducidad', expired: false };
   const ms = new Date(user.expiresAt).getTime() - Date.now();
-  if (ms <= 0) {
-    return { label: 'Caducado', expired: true };
-  }
+  if (ms <= 0) return { label: 'Caducado', expired: true };
 
   const totalMinutes = Math.floor(ms / 60000);
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
-
-  const parts = [];
-  if (days) parts.push(`${days}d`);
-  if (hours || days) parts.push(`${hours}h`);
-  parts.push(`${minutes}m`);
-
-  return {
-    label: `${parts.join(' ')} restantes`,
-    expired: false
-  };
+  return { label: `${days}d ${hours}h ${minutes}m restantes`, expired: false };
 }
 
 function planLabelClient(plan) {
@@ -859,19 +844,8 @@ function serveConfigurePage(res, user, token) {
   const safeRemaining = escapeHtmlClient(left.label);
   const safeConnections = escapeHtmlClient(String(user.maxConnections || 1));
 
-  const deviceColor = Number(user.maxConnections || 1) <= 1
-    ? '#22c55e'
-    : Number(user.maxConnections || 1) === 2
-      ? '#f59e0b'
-      : '#ef4444';
-
-  const planColor = (user.plan === 'anual')
-    ? '#7c3aed'
-    : (user.plan === 'trimestral')
-      ? '#d4a514'
-      : '#e50914';
-
-  const countdownText = escapeHtmlClient(left.label);
+  const deviceColor = Number(user.maxConnections || 1) <= 1 ? '#22c55e' : Number(user.maxConnections || 1) === 2 ? '#f59e0b' : '#ef4444';
+  const planColor = user.plan === 'anual' ? '#7c3aed' : user.plan === 'trimestral' ? '#d4a514' : '#e50914';
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -886,276 +860,91 @@ function serveConfigurePage(res, user, token) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>MoiStremioTV · Configuración</title>
 <style>
-:root{
-  --bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;
-  --red:#ef4444;--green:#22c55e;--blue:#2563eb;--gold:#f59e0b;--purple:#7c3aed;
-}
+:root{--text:#f8fafc;--muted:#94a3b8}
 *{box-sizing:border-box}
-body{
-  margin:0;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:
-    radial-gradient(circle at top left, rgba(229,9,20,.20) 0, rgba(5,9,22,0) 35%),
-    radial-gradient(circle at top right, rgba(124,58,237,.16) 0, rgba(5,9,22,0) 30%),
-    #050916;
-  color:var(--text);
-  font-family:Inter,Arial,sans-serif;
-  padding:20px;
-}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at top left, rgba(229,9,20,.20) 0, rgba(5,9,22,0) 35%),radial-gradient(circle at top right, rgba(124,58,237,.16) 0, rgba(5,9,22,0) 30%),#050916;color:var(--text);font-family:Inter,Arial,sans-serif;padding:20px}
 .wrap{width:min(980px,100%)}
-.card{
-  background:rgba(13,20,40,.98);
-  border:1px solid #2a3554;
-  border-radius:28px;
-  overflow:hidden;
-  box-shadow:0 30px 90px rgba(0,0,0,.42);
-}
-.hero{
-  position:relative;
-  padding:28px;
-  background:
-    linear-gradient(135deg, rgba(229,9,20,.22), rgba(124,58,237,.10)),
-    linear-gradient(180deg, #141d35, #0b1226);
-  border-bottom:1px solid #2a3554;
-}
-.brand{font-size:40px;font-weight:900;line-height:1}
-.brand .accent{color:#ef4444}
-.subtitle{color:#cbd5e1;margin-top:8px;font-size:15px}
+.card{background:rgba(13,20,40,.98);border:1px solid #2a3554;border-radius:28px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.42)}
+.hero{padding:28px;background:linear-gradient(135deg, rgba(229,9,20,.22), rgba(124,58,237,.10)),linear-gradient(180deg, #141d35, #0b1226);border-bottom:1px solid #2a3554}
+.brand{font-size:40px;font-weight:900;line-height:1}.brand .accent{color:#ef4444}.subtitle{color:#cbd5e1;margin-top:8px;font-size:15px}
 .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
-.badge{
-  display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;
-  border:1px solid rgba(255,255,255,.12);font-weight:800;font-size:13px
-}
-.grid{
-  display:grid;grid-template-columns:1.2fr .8fr;gap:18px;padding:22px
-}
-.panel{
-  background:#0a1120;border:1px solid #243453;border-radius:22px;padding:18px
-}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.12);font-weight:800;font-size:13px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;padding:22px}
+.panel{background:#0a1120;border:1px solid #243453;border-radius:22px;padding:18px}
 .lines{display:grid;gap:12px}
-.line{
-  display:flex;justify-content:space-between;gap:10px;
-  padding:14px 16px;border-radius:18px;background:#0c1730;border:1px solid #243453
-}
-.label{color:#9fb0c8;font-size:13px}
-.value{font-weight:800;text-align:right}
+.line{display:flex;justify-content:space-between;gap:10px;padding:14px 16px;border-radius:18px;background:#0c1730;border:1px solid #243453}
+.label{color:#9fb0c8;font-size:13px}.value{font-weight:800;text-align:right}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
-button{
-  border:0;border-radius:16px;padding:12px 18px;font-weight:800;color:#fff;cursor:pointer
-}
-.btn-green{background:#22c55e}
-.btn-blue{background:#2563eb}
-.msg{margin-top:14px;font-size:14px;color:#cbd5e1}
-.note{margin-top:12px;font-size:12px;color:#94a3b8}
-.side-card{
-  border-radius:24px;padding:18px;background:
-  linear-gradient(180deg, rgba(18,26,49,.98), rgba(10,17,32,.98));
-  border:1px solid #2c3d66;
-}
-.poster{
-  border-radius:22px;
-  min-height:210px;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.55)),
-    linear-gradient(135deg, ${planColor}, ${deviceColor});
-  border:1px solid rgba(255,255,255,.10);
-  display:flex;flex-direction:column;justify-content:space-between;padding:16px
-}
+button{border:0;border-radius:16px;padding:12px 18px;font-weight:800;color:#fff;cursor:pointer}
+.btn-green{background:#22c55e}.btn-blue{background:#2563eb}
+.msg{margin-top:14px;font-size:14px;color:#cbd5e1}.note{margin-top:12px;font-size:12px;color:#94a3b8}
+.side-card{border-radius:24px;padding:18px;background:linear-gradient(180deg, rgba(18,26,49,.98), rgba(10,17,32,.98));border:1px solid #2c3d66}
+.poster{border-radius:22px;min-height:210px;background:linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.55)),linear-gradient(135deg, ${planColor}, ${deviceColor});border:1px solid rgba(255,255,255,.10);display:flex;flex-direction:column;justify-content:space-between;padding:16px}
 .poster-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.poster-brand{font-weight:900;font-size:24px;line-height:1.05}
-.poster-brand span{color:#fff}
-.poster-mini{font-size:12px;opacity:.9;font-weight:700}
-.pill{
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:900
-}
-.poster-title{
-  font-size:26px;font-weight:900;line-height:1.02;max-width:260px;
-  text-shadow:0 6px 18px rgba(0,0,0,.35)
-}
+.poster-brand{font-weight:900;font-size:24px;line-height:1.05}.poster-brand span{color:#fff}.poster-mini{font-size:12px;opacity:.9;font-weight:700}
+.pill{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:900}
+.poster-title{font-size:26px;font-weight:900;line-height:1.02;max-width:260px;text-shadow:0 6px 18px rgba(0,0,0,.35)}
 .poster-meta{display:grid;gap:8px}
-.meta-chip{
-  display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
-  background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.12);width:max-content;font-size:12px;font-weight:900
-}
-.qrbox{
-  background:#fff;border-radius:18px;min-height:180px;display:flex;align-items:center;justify-content:center;
-  margin-top:16px;padding:10px
-}
-.countdown{
-  margin-top:14px;padding:12px 14px;border-radius:16px;background:#091121;border:1px solid #243453;
-  font-weight:900;font-size:14px;color:#e2e8f0
-}
-.live-dot{
-  width:10px;height:10px;border-radius:999px;background:${deviceColor};box-shadow:0 0 0 8px rgba(255,255,255,.04)
-}
-@media (max-width: 860px){
-  .grid{grid-template-columns:1fr}
-}
+.meta-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.12);width:max-content;font-size:12px;font-weight:900}
+.qrbox{background:#fff;border-radius:18px;min-height:180px;display:flex;align-items:center;justify-content:center;margin-top:16px;padding:10px}
+.countdown{margin-top:14px;padding:12px 14px;border-radius:16px;background:#091121;border:1px solid #243453;font-weight:900;font-size:14px;color:#e2e8f0}
+.live-dot{width:10px;height:10px;border-radius:999px;background:${deviceColor};box-shadow:0 0 0 8px rgba(255,255,255,.04)}
+@media (max-width: 860px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <div class="hero">
-        <div class="brand">Moi<span class="accent">StremioTV</span></div>
-        <div class="subtitle">Panel cliente PRO · Actualiza el addon sin reinstalar</div>
-        <div class="badges">
-          <div class="badge" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.28)"><span class="live-dot"></span>${safeState}</div>
-          <div class="badge" style="background:rgba(229,9,20,.12);border-color:rgba(229,9,20,.28)">PLAN ${safePlan.toUpperCase()}</div>
-          <div class="badge" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.28)">${safeConnections} DISPOSITIVO(S)</div>
-        </div>
-      </div>
-
-      <div class="grid">
-        <div class="panel">
-          <div class="lines">
-            <div class="line"><div class="label">Usuario</div><div class="value">${safeName}</div></div>
-            <div class="line"><div class="label">Plan</div><div class="value">${safePlan}</div></div>
-            <div class="line"><div class="label">Conexiones</div><div class="value">${safeConnections}</div></div>
-            <div class="line"><div class="label">Caduca</div><div class="value">${safeExpires}</div></div>
-            <div class="line"><div class="label">Estado</div><div class="value">${safeState}</div></div>
-            <div class="line"><div class="label">Tiempo restante</div><div class="value" id="remainingValue">${safeRemaining}</div></div>
-          </div>
-
-          <div class="actions">
-            <button class="btn-green" id="refreshBtn">🚀 Actualizar servidor</button>
-            <button class="btn-blue" id="reinstallBtn">♻️ Reinstalar addon actualizado</button>
-            <button class="btn-blue" id="copyBtn">🔗 Copiar acceso</button>
-          </div>
-
-          <div id="msg" class="msg"></div>
-          <div class="note">Primero actualiza el servidor. Después pulsa “Reinstalar addon actualizado”.</div>
-        </div>
-
-        <div class="side-card">
-          <div class="poster">
-            <div class="poster-top">
-              <div>
-                <div class="poster-mini">ACCESO PRIVADO</div>
-                <div class="poster-brand">Moi<span>StremioTV</span></div>
-              </div>
-              <div class="pill">PRO</div>
-            </div>
-
-            <div class="poster-title">${safePlan} · ${safeConnections} disp.</div>
-
-            <div class="poster-meta">
-              <div class="meta-chip">🎬 Cine · Series · TV</div>
-              <div class="meta-chip">⚽ Eventos deportivos</div>
-              <div class="meta-chip">⏳ ${countdownText}</div>
-            </div>
-          </div>
-
-          <div class="qrbox">
-            <canvas id="qrCanvas" width="180" height="180"></canvas>
-          </div>
-
-          <div class="countdown" id="countdownBox">Tiempo restante: ${countdownText}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+<body><div class="wrap"><div class="card">
+<div class="hero">
+<div class="brand">Moi<span class="accent">StremioTV</span></div>
+<div class="subtitle">Panel cliente PRO · Actualiza el addon sin reinstalar</div>
+<div class="badges">
+<div class="badge" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.28)"><span class="live-dot"></span>${safeState}</div>
+<div class="badge" style="background:rgba(229,9,20,.12);border-color:rgba(229,9,20,.28)">PLAN ${safePlan.toUpperCase()}</div>
+<div class="badge" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.28)">${safeConnections} DISPOSITIVO(S)</div>
+</div></div>
+<div class="grid">
+<div class="panel">
+<div class="lines">
+<div class="line"><div class="label">Usuario</div><div class="value">${safeName}</div></div>
+<div class="line"><div class="label">Plan</div><div class="value">${safePlan}</div></div>
+<div class="line"><div class="label">Conexiones</div><div class="value">${safeConnections}</div></div>
+<div class="line"><div class="label">Caduca</div><div class="value">${safeExpires}</div></div>
+<div class="line"><div class="label">Estado</div><div class="value">${safeState}</div></div>
+<div class="line"><div class="label">Tiempo restante</div><div class="value" id="remainingValue">${safeRemaining}</div></div>
+</div>
+<div class="actions">
+<button class="btn-green" id="refreshBtn">🚀 Actualizar servidor</button>
+<button class="btn-blue" id="reinstallBtn">♻️ Reinstalar addon actualizado</button>
+<button class="btn-blue" id="copyBtn">🔗 Copiar acceso</button>
+</div>
+<div id="msg" class="msg"></div>
+<div class="note">Primero actualiza el servidor. Después pulsa “Reinstalar addon actualizado”.</div>
+</div>
+<div class="side-card">
+<div class="poster">
+<div class="poster-top"><div><div class="poster-mini">ACCESO PRIVADO</div><div class="poster-brand">Moi<span>StremioTV</span></div></div><div class="pill">PRO</div></div>
+<div class="poster-title">${safePlan} · ${safeConnections} disp.</div>
+<div class="poster-meta"><div class="meta-chip">🎬 Cine · Series · TV</div><div class="meta-chip">⚽ Eventos deportivos</div><div class="meta-chip">⏳ ${safeRemaining}</div></div>
+</div>
+<div class="qrbox"><canvas id="qrCanvas" width="180" height="180"></canvas></div>
+<div class="countdown" id="countdownBox">Tiempo restante: ${safeRemaining}</div>
+</div></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const token = ${JSON.stringify(token)};
-let cacheVersion = ${JSON.stringify(user.updatedAt || Date.now())};
-const manifestUrl = () => `/u/${encodeURIComponent(token)}/manifest.json?v=${encodeURIComponent(cacheVersion)}`;
-const refreshUrl = `/u/${encodeURIComponent(token)}/refresh-cache`;
+let cacheVersion = Date.now();
+const manifestUrl = () => \`/u/\${encodeURIComponent(token)}/manifest.json?v=\${encodeURIComponent(cacheVersion)}\`;
+const refreshUrl = \`/u/\${encodeURIComponent(token)}/refresh-cache\`;
 const expiresAt = ${JSON.stringify(user.expiresAt || null)};
 const msg = document.getElementById('msg');
-
-async function drawQr() {
-  const canvas = document.getElementById('qrCanvas');
-  if (!window.QRCode) {
-    msg.textContent = 'QR no disponible';
-    return;
-  }
-  try {
-    await QRCode.toCanvas(canvas, location.origin + manifestUrl(), {
-      width: 180,
-      margin: 1,
-      color: { dark: '#111827', light: '#ffffff' }
-    });
-  } catch {
-    msg.textContent = 'No se pudo generar el QR';
-  }
-}
-
-function tickCountdown() {
-  if (!expiresAt) return;
-  const target = new Date(expiresAt).getTime();
-  const now = Date.now();
-  const diff = target - now;
-  const box = document.getElementById('countdownBox');
-  const value = document.getElementById('remainingValue');
-  if (diff <= 0) {
-    box.textContent = 'Tiempo restante: Caducado';
-    value.textContent = 'Caducado';
-    return;
-  }
-  const totalMinutes = Math.floor(diff / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  const txt = `${days}d ${hours}h ${minutes}m restantes`;
-  box.textContent = 'Tiempo restante: ' + txt;
-  value.textContent = txt;
-}
-
-async function refreshServer() {
-  const btn = document.getElementById('refreshBtn');
-  btn.disabled = true;
-  btn.textContent = 'Actualizando...';
-  msg.textContent = 'Actualizando servidor...';
-
-  try {
-    const res = await fetch(refreshUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}'
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error');
-    cacheVersion = data.updatedAt || Date.now();
-    await drawQr();
-    msg.textContent = '✅ Servidor actualizado. Ahora pulsa “Reinstalar addon actualizado”.';
-  } catch (e) {
-    msg.textContent = '❌ No se pudo actualizar el servidor';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🚀 Actualizar servidor';
-  }
-}
-
-function reinstallAddon() {
-  const cleanUrl = location.origin.replace(/^https?:\/\//, '');
-  const deepLink = 'stremio://' + cleanUrl + manifestUrl();
-  location.href = deepLink;
-}
-
-async function copyAccess() {
-  try {
-    await navigator.clipboard.writeText(location.origin + manifestUrl());
-    msg.textContent = '✅ Enlace copiado';
-  } catch {
-    msg.textContent = '❌ No se pudo copiar el enlace';
-  }
-}
-
-document.getElementById('refreshBtn').addEventListener('click', refreshServer);
-document.getElementById('reinstallBtn').addEventListener('click', reinstallAddon);
-document.getElementById('copyBtn').addEventListener('click', copyAccess);
-
-drawQr();
-tickCountdown();
-setInterval(tickCountdown, 30000);
+async function drawQr(){const canvas=document.getElementById('qrCanvas');if(!window.QRCode){msg.textContent='QR no disponible';return;}try{await QRCode.toCanvas(canvas,location.origin+manifestUrl(),{width:180,margin:1,color:{dark:'#111827',light:'#ffffff'}});}catch{msg.textContent='No se pudo generar el QR';}}
+function tickCountdown(){if(!expiresAt)return;const target=new Date(expiresAt).getTime();const now=Date.now();const diff=target-now;const box=document.getElementById('countdownBox');const value=document.getElementById('remainingValue');if(diff<=0){box.textContent='Tiempo restante: Caducado';value.textContent='Caducado';return;}const totalMinutes=Math.floor(diff/60000);const days=Math.floor(totalMinutes/1440);const hours=Math.floor((totalMinutes%1440)/60);const minutes=totalMinutes%60;const txt=\`\${days}d \${hours}h \${minutes}m restantes\`;box.textContent='Tiempo restante: '+txt;value.textContent=txt;}
+async function refreshServer(){const btn=document.getElementById('refreshBtn');btn.disabled=true;btn.textContent='Actualizando...';msg.textContent='Actualizando servidor...';try{const res=await fetch(refreshUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await res.json();if(!res.ok) throw new Error(data.error||'Error');cacheVersion=(data.version || Date.now()) + '-' + Date.now();await drawQr();msg.textContent='✅ Servidor actualizado. Ahora pulsa “Reinstalar addon actualizado”.';}catch(e){msg.textContent='❌ No se pudo actualizar el servidor';}finally{btn.disabled=false;btn.textContent='🚀 Actualizar servidor';}}
+function reinstallAddon(){location.href=location.origin+manifestUrl();}
+async function copyAccess(){try{await navigator.clipboard.writeText(location.origin+manifestUrl());msg.textContent='✅ Enlace copiado';}catch{msg.textContent='❌ No se pudo copiar el enlace';}}
+document.getElementById('refreshBtn').addEventListener('click',refreshServer);
+document.getElementById('reinstallBtn').addEventListener('click',reinstallAddon);
+document.getElementById('copyBtn').addEventListener('click',copyAccess);
+drawQr();tickCountdown();setInterval(tickCountdown,30000);
 </script>
-</body>
-</html>`);
+</body></html>`);
 }
