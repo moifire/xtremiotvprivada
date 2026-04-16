@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MoiStremioTV · Configuración</title>
+  <style>
+    :root{--bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;--red:#ef4444;--green:#22c55e;--blue:#2563eb}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at top left,#3a0911 0,#050916 40%);color:var(--text);font-family:Inter,Arial,sans-serif;padding:20px}
+    .card{width:min(520px,100%);background:rgba(13,20,40,.98);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:0 20px 70px rgba(0,0,0,.35)}
+    h1{margin:0 0 10px;color:#fff;font-size:34px}
+    .brand{font-weight:800}.brand .accent{color:#ef4444}.muted{color:var(--muted)}
+    .box{margin-top:16px;background:#091121;border:1px solid var(--line);border-radius:18px;padding:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    button,a.btn{border:0;border-radius:16px;padding:12px 18px;font-weight:700;color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .btn-green{background:var(--green)} .btn-blue{background:var(--blue)} .btn-dark{background:#1b2a49}
+    .tiny{font-size:12px;color:var(--muted);margin-top:14px} #msg{margin-top:14px;font-size:14px}.ok{color:#86efac}.err{color:#fca5a5}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1><span class="brand">Moi<span class="accent">StremioTV</span></span></h1>
+    <div class="muted">Panel rápido para actualizar el addon sin reinstalar.</div>
+
+    <div class="box">
+      <div><strong>Qué puedes hacer aquí</strong></div>
+      <div class="muted" style="margin-top:8px">
+        • Actualizar el catálogo<br>
+        • Abrir el panel admin<br>
+        • Ver la versión actual del catálogo
+      </div>
+    </div>
+
+    <div class="box">
+      <div id="cacheInfo">Versión catálogo: cargando...</div>
+    </div>
+
+    <div class="row">
+      <button class="btn-green" id="refreshBtn">🚀 Actualizar catálogo</button>
+      <a class="btn btn-blue" href="/admin" target="_blank" rel="noopener">📊 Abrir panel admin</a>
+      <a class="btn btn-dark" id="manifestBtn" href="/" target="_blank" rel="noopener">🔗 Abrir manifest</a>
+    </div>
+
+    <div id="msg" class="muted"></div>
+    <div class="tiny">Después de actualizar, cierra y abre Stremio para forzar el refresco visual del catálogo.</div>
+  </div>
+
+  <script>
+    function tokenFromPath() {
+      const m = location.pathname.match(/^\/u\/([^/]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+
+    async function loadCacheInfo() {
+      try {
+        const res = await fetch('/api/admin/cache-info', { cache: 'no-store' });
+        const data = await res.json();
+        document.getElementById('cacheInfo').textContent =
+          'Versión catálogo: ' + (data.version ?? '-') + ' · Última actualización: ' +
+          (data.updatedAt ? new Date(data.updatedAt).toLocaleString() : '-');
+      } catch (e) {
+        document.getElementById('cacheInfo').textContent = 'No se pudo leer la versión del catálogo';
+      }
+    }
+
+    async function refreshCache() {
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('refreshBtn');
+      msg.className = 'muted';
+      msg.textContent = 'Actualizando catálogo...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/refresh-cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        await loadCacheInfo();
+        msg.className = 'ok';
+        msg.textContent = '✅ Catálogo actualizado. Cierra y abre Stremio.';
+      } catch (e) {
+        msg.className = 'err';
+        msg.textContent = '❌ No se pudo actualizar el catálogo';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refreshCache);
+
+    const token = tokenFromPath();
+    if (token) {
+      document.getElementById('manifestBtn').href = `/u/${encodeURIComponent(token)}/manifest.json`;
+    } else {
+      document.getElementById('manifestBtn').style.display = 'none';
+    }
+
+    loadCacheInfo();
+  </script>
+</body>
+</html>
