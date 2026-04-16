@@ -35,34 +35,36 @@ export default async function handler(req, res) {
 
     const userMatch = pathname.match(/^\/u\/([^/]+)\/(.+)$/);
     if (userMatch) {
-  const token = decodeURIComponent(userMatch[1]);
-  const endpoint = userMatch[2];
+      const token = decodeURIComponent(userMatch[1]);
+      const endpoint = userMatch[2];
 
-  // 🔥 FIX: permitir /configure
-  if (endpoint === 'configure') {
-    return serveConfigurePage(res);
-  }
+      const user = await getUserByToken(token);
+      if (!user) return sendJson(res, 401, { error: 'Token no válido' });
 
-       const user = await getUserByToken(token);
-  if (!user) return sendJson(res, 401, { error: 'Token no válido' });
+      if (endpoint === 'configure') {
+        return serveConfigurePage(res, user, token);
+      }
 
-  if (endpoint === 'configure') {
-    return serveConfigurePage(res, user, token);
-  }
+      if (endpoint === 'refresh-cache' && req.method === 'POST') {
+        const info = await bumpCacheVersion();
+        return sendJson(res, 200, { ok: true, ...info });
+      }
 
-  if (!isUserActive(user)) return sendJson(res, 401, { error: 'Usuario caducado o desactivado' });
+      if (!isUserActive(user)) {
+        return sendJson(res, 401, { error: 'Usuario caducado o desactivado' });
+      }
 
-  const ip = getClientIp(req);
-  const tracked = await trackUserConnection(user.id, ip);
-  if (!tracked.ok) return sendJson(res, 401, { error: tracked.error });
+      const ip = getClientIp(req);
+      const tracked = await trackUserConnection(user.id, ip);
+      if (!tracked.ok) return sendJson(res, 401, { error: tracked.error });
 
-  if (endpoint === 'manifest.json') return await serveManifest(req, res, token);
-  if (endpoint.startsWith('catalog/')) return await serveCatalog(req, res, endpoint);
-  if (endpoint.startsWith('meta/')) return await serveMeta(req, res, endpoint);
-  if (endpoint.startsWith('stream/')) return await serveStream(req, res, endpoint);
+      if (endpoint === 'manifest.json') return await serveManifest(req, res, token);
+      if (endpoint.startsWith('catalog/')) return await serveCatalog(req, res, endpoint);
+      if (endpoint.startsWith('meta/')) return await serveMeta(req, res, endpoint);
+      if (endpoint.startsWith('stream/')) return await serveStream(req, res, endpoint);
 
-  return sendJson(res, 404, { error: 'Ruta no encontrada' });
-}
+      return sendJson(res, 404, { error: 'Ruta no encontrada' });
+    }
 
     return sendJson(res, 404, { error: 'Ruta no encontrada' });
   } catch (error) {
@@ -309,11 +311,11 @@ async function serveManifest(req, res, token) {
   const tvCatalogs = categories.length
     ? categories.map((category) => ({
         type: 'tv',
-        id: slug(category),
+        id: `${slug(category)}-v${cacheInfo.version}`,
         name: `TV · ${category}`,
         extra: [{ name: 'search' }]
       }))
-    : [{ type: 'tv', id: 'all', name: 'TV', extra: [{ name: 'search' }] }];
+    : [{ type: 'tv', id: `all-v${cacheInfo.version}`, name: 'TV', extra: [{ name: 'search' }] }];
 
   return sendJson(res, 200, {
     id: 'com.moistremiotv.private.v5',
@@ -325,8 +327,8 @@ async function serveManifest(req, res, token) {
     types: ['tv', 'movie', 'series'],
     catalogs: [
       ...tvCatalogs,
-      { type: 'movie', id: 'movies', name: 'Películas', extra: [{ name: 'search' }] },
-      { type: 'series', id: 'series', name: 'Series', extra: [{ name: 'search' }] }
+      { type: 'movie', id: `movies-v${cacheInfo.version}`, name: 'Películas', extra: [{ name: 'search' }] },
+      { type: 'series', id: `series-v${cacheInfo.version}`, name: 'Series', extra: [{ name: 'search' }] }
     ],
     behaviorHints: {
       configurable: true,
@@ -349,23 +351,22 @@ async function serveCatalog(req, res, endpoint) {
   if (!match) return sendJson(res, 404, { error: 'Ruta de catálogo no válida' });
 
   const [, type, catalogId] = match;
+  const cleanCatalogId = String(catalogId).replace(/-v\d+$/, '');
   const url = getRequestUrl(req);
   const search = String(url.searchParams.get('search') || '').toLowerCase().trim();
 
   const catalog = await getCatalog();
   let items = catalog.items.filter((item) => (item.type || 'tv') === type);
 
-  if (type === 'tv' && catalogId !== 'all') {
-    items = items.filter((item) => slug(item.category || 'General') === catalogId);
+  if (type === 'tv' && cleanCatalogId !== 'all') {
+    items = items.filter((item) => slug(item.category || 'General') === cleanCatalogId);
   }
 
-  if (type === 'movie' && catalogId !== 'movies') items = [];
-  if (type === 'series' && catalogId !== 'series') items = [];
+  if (type === 'movie' && cleanCatalogId !== 'movies') items = [];
+  if (type === 'series' && cleanCatalogId !== 'series') items = [];
   if (search) {
     items = items.filter((item) =>
-      `${item.name} ${item.description || ''} ${item.category || ''}`
-        .toLowerCase()
-        .includes(search)
+      `${item.name} ${item.description || ''} ${item.category || ''}`.toLowerCase().includes(search)
     );
   }
 
@@ -815,6 +816,7 @@ function slug(value) {
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
+
 function calcRemainingForClient(user) {
   if (!user?.expiresAt) {
     return { label: 'Sin caducidad', expired: false };
@@ -1001,7 +1003,9 @@ button{
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
-const manifestUrl = ${JSON.stringify(installUrl)};
+const token = ${JSON.stringify(token)};
+const manifestUrl = \`/u/\${encodeURIComponent(token)}/manifest.json\`;
+const refreshUrl = \`/u/\${encodeURIComponent(token)}/refresh-cache\`;
 const msg = document.getElementById('msg');
 
 async function drawQr() {
@@ -1028,7 +1032,7 @@ async function refreshCache() {
   msg.textContent = 'Actualizando catálogo...';
 
   try {
-    const res = await fetch('/api/admin/refresh-cache', {
+    const res = await fetch(refreshUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}'
@@ -1036,7 +1040,7 @@ async function refreshCache() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
     msg.textContent = '✅ Catálogo actualizado. Cierra y abre Stremio.';
-  } catch {
+  } catch (e) {
     msg.textContent = '❌ No se pudo actualizar el catálogo';
   } finally {
     btn.disabled = false;
