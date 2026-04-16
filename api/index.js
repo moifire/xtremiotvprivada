@@ -43,21 +43,26 @@ export default async function handler(req, res) {
     return serveConfigurePage(res);
   }
 
-      const user = await getUserByToken(token);
-      if (!user) return sendJson(res, 401, { error: 'Token no válido' });
-      if (!isUserActive(user)) return sendJson(res, 401, { error: 'Usuario caducado o desactivado' });
+       const user = await getUserByToken(token);
+  if (!user) return sendJson(res, 401, { error: 'Token no válido' });
 
-      const ip = getClientIp(req);
-      const tracked = await trackUserConnection(user.id, ip);
-      if (!tracked.ok) return sendJson(res, 401, { error: tracked.error });
+  if (endpoint === 'configure') {
+    return serveConfigurePage(res, user, token);
+  }
 
-      if (endpoint === 'manifest.json') return await serveManifest(req, res, token);
-      if (endpoint.startsWith('catalog/')) return await serveCatalog(req, res, endpoint);
-      if (endpoint.startsWith('meta/')) return await serveMeta(req, res, endpoint);
-      if (endpoint.startsWith('stream/')) return await serveStream(req, res, endpoint);
+  if (!isUserActive(user)) return sendJson(res, 401, { error: 'Usuario caducado o desactivado' });
 
-      return sendJson(res, 404, { error: 'Ruta no encontrada' });
-    }
+  const ip = getClientIp(req);
+  const tracked = await trackUserConnection(user.id, ip);
+  if (!tracked.ok) return sendJson(res, 401, { error: tracked.error });
+
+  if (endpoint === 'manifest.json') return await serveManifest(req, res, token);
+  if (endpoint.startsWith('catalog/')) return await serveCatalog(req, res, endpoint);
+  if (endpoint.startsWith('meta/')) return await serveMeta(req, res, endpoint);
+  if (endpoint.startsWith('stream/')) return await serveStream(req, res, endpoint);
+
+  return sendJson(res, 404, { error: 'Ruta no encontrada' });
+}
 
     return sendJson(res, 404, { error: 'Ruta no encontrada' });
   } catch (error) {
@@ -810,61 +815,248 @@ function slug(value) {
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
-function serveConfigurePage(res) {
+function calcRemainingForClient(user) {
+  if (!user?.expiresAt) {
+    return { label: 'Sin caducidad', expired: false };
+  }
+
+  const ms = new Date(user.expiresAt).getTime() - Date.now();
+  if (ms <= 0) {
+    return { label: 'Caducado', expired: true };
+  }
+
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours || days) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+
+  return {
+    label: `${parts.join(' ')} restantes`,
+    expired: false
+  };
+}
+
+function planLabelClient(plan) {
+  return ({ mensual:'Mensual', trimestral:'Trimestral', anual:'Anual', personalizado:'Personalizado' })[plan] || 'Mensual';
+}
+
+function escapeHtmlClient(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]
+  ));
+}
+
+function serveConfigurePage(res, user, token) {
+  const left = calcRemainingForClient(user);
+  const installUrl = `/u/${encodeURIComponent(token)}/manifest.json`;
+  const safeName = escapeHtmlClient(user.name || 'Cliente');
+  const safePlan = escapeHtmlClient(planLabelClient(user.plan || 'mensual'));
+  const safeState = escapeHtmlClient(user.enabled !== false && !left.expired ? 'Activo' : 'Caducado / inactivo');
+  const safeExpires = escapeHtmlClient(user.expiresAt ? new Date(user.expiresAt).toLocaleDateString() : 'Sin fecha');
+  const safeRemaining = escapeHtmlClient(left.label);
+  const safeConnections = escapeHtmlClient(String(user.maxConnections || 1));
+
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
-  res.end(`
-<!DOCTYPE html>
-<html>
+  res.end(`<!DOCTYPE html>
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>MoiStremioTV</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MoiStremioTV · Configuración</title>
 <style>
-body {
-  background:#0b0f1a;
-  color:white;
-  font-family:Arial;
-  text-align:center;
-  padding:40px;
+:root{
+  --bg:#050916;--panel:#0d1428;--line:#21304f;--text:#f8fafc;--muted:#94a3b8;
+  --red:#ef4444;--green:#22c55e;--blue:#2563eb;--gold:#f59e0b;
 }
-button {
-  padding:12px 20px;
-  border:none;
-  border-radius:10px;
-  margin:10px;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:radial-gradient(circle at top left,#3a0911 0,#050916 40%);
+  color:var(--text);
+  font-family:Inter,Arial,sans-serif;
+  padding:20px;
+}
+.card{
+  width:min(760px,100%);
+  background:rgba(13,20,40,.98);
+  border:1px solid var(--line);
+  border-radius:26px;
+  padding:28px;
+  box-shadow:0 20px 70px rgba(0,0,0,.35);
+}
+.brand{
+  font-size:34px;
+  font-weight:800;
+  margin:0 0 8px;
+}
+.brand span{color:#ef4444}
+.sub{color:var(--muted);margin-bottom:18px}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 220px;
+  gap:20px;
+  align-items:start;
+}
+.lines{
+  display:grid;
+  gap:12px;
+}
+.line{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px 16px;
+  border-radius:18px;
+  background:#091121;
+  border:1px solid var(--line);
+}
+.label{color:#94a3b8}
+.value{font-weight:700;text-align:right}
+.side{
+  background:linear-gradient(180deg,#1f163b,#0c1328 55%,#0a1120);
+  border:1px solid #4338ca;
+  border-radius:22px;
+  padding:18px;
+}
+.qrbox{
+  background:#fff;
+  border-radius:18px;
+  min-height:180px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:10px;
+  padding:10px;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+button{
+  border:0;
+  border-radius:16px;
+  padding:12px 18px;
+  font-weight:700;
+  color:#fff;
   cursor:pointer;
 }
-.green {background:#22c55e;color:white;}
-.blue {background:#3b82f6;color:white;}
+.btn-green{background:var(--green)}
+.btn-blue{background:var(--blue)}
+.msg{margin-top:12px;font-size:14px;color:var(--muted)}
+.note{margin-top:14px;font-size:12px;color:var(--muted)}
+@media (max-width: 800px){
+  .grid{grid-template-columns:1fr}
+}
 </style>
 </head>
-
 <body>
+  <div class="card">
+    <div class="brand">Moi<span>StremioTV</span></div>
+    <div class="sub">Configuración rápida del addon</div>
 
-<h1>⚙️ MoiStremioTV</h1>
+    <div class="grid">
+      <div>
+        <div class="lines">
+          <div class="line"><div class="label">Usuario</div><div class="value">${safeName}</div></div>
+          <div class="line"><div class="label">Plan</div><div class="value">${safePlan}</div></div>
+          <div class="line"><div class="label">Caduca</div><div class="value">${safeExpires}</div></div>
+          <div class="line"><div class="label">Conexiones</div><div class="value">${safeConnections}</div></div>
+          <div class="line"><div class="label">Estado</div><div class="value">${safeState}</div></div>
+          <div class="line"><div class="label">Restante</div><div class="value">${safeRemaining}</div></div>
+        </div>
 
-<button class="green" onclick="update()">Actualizar catálogo</button>
-<button class="blue" onclick="openPanel()">Panel admin</button>
+        <div class="actions">
+          <button class="btn-green" id="refreshBtn">🚀 Actualizar catálogo</button>
+          <button class="btn-blue" id="copyBtn">🔗 Copiar acceso</button>
+        </div>
 
-<p id="msg"></p>
+        <div id="msg" class="msg"></div>
+        <div class="note">Después de actualizar, cierra y abre Stremio para refrescar el catálogo visualmente.</div>
+      </div>
 
+      <div class="side">
+        <strong>Acceso directo</strong>
+        <div class="qrbox">
+          <canvas id="qrCanvas" width="180" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
-async function update(){
-  try{
-    await fetch('/api/admin/refresh-cache',{method:'POST'});
-    document.getElementById('msg').innerText='✅ Actualizado. Cierra y abre Stremio';
-  }catch{
-    document.getElementById('msg').innerText='❌ Error';
+const manifestUrl = ${JSON.stringify(installUrl)};
+const msg = document.getElementById('msg');
+
+async function drawQr() {
+  const canvas = document.getElementById('qrCanvas');
+  if (!window.QRCode) {
+    msg.textContent = 'QR no disponible';
+    return;
+  }
+  try {
+    await QRCode.toCanvas(canvas, location.origin + manifestUrl, {
+      width: 180,
+      margin: 1,
+      color: { dark: '#111827', light: '#ffffff' }
+    });
+  } catch {
+    msg.textContent = 'No se pudo generar el QR';
   }
 }
 
-function openPanel(){
-  window.location.href='/admin';
-}
-</script>
+async function refreshCache() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = 'Actualizando...';
+  msg.textContent = 'Actualizando catálogo...';
 
+  try {
+    const res = await fetch('/api/admin/refresh-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    msg.textContent = '✅ Catálogo actualizado. Cierra y abre Stremio.';
+  } catch {
+    msg.textContent = '❌ No se pudo actualizar el catálogo';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Actualizar catálogo';
+  }
+}
+
+async function copyAccess() {
+  try {
+    await navigator.clipboard.writeText(location.origin + manifestUrl);
+    msg.textContent = '✅ Enlace copiado';
+  } catch {
+    msg.textContent = '❌ No se pudo copiar el enlace';
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', refreshCache);
+document.getElementById('copyBtn').addEventListener('click', copyAccess);
+drawQr();
+</script>
 </body>
-</html>
-`);
+</html>`);
 }
