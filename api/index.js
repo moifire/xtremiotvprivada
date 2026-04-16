@@ -34,9 +34,14 @@ export default async function handler(req, res) {
     }
 
     const userMatch = pathname.match(/^\/u\/([^/]+)\/(.+)$/);
-    if (userMatch) {
-      const token = decodeURIComponent(userMatch[1]);
-      const endpoint = userMatch[2];
+   if (userMatch) {
+  const token = decodeURIComponent(userMatch[1]);
+  const endpoint = userMatch[2];
+
+  // 🔥 FIX: permitir /configure
+  if (endpoint === 'configure') {
+    return serveConfigurePage(res);
+  }
 
       const user = await getUserByToken(token);
       if (!user) return sendJson(res, 401, { error: 'Token no válido' });
@@ -804,4 +809,62 @@ function slug(value) {
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
+}
+function serveConfigurePage(res) {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+  res.end(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MoiStremioTV</title>
+<style>
+body {
+  background:#0b0f1a;
+  color:white;
+  font-family:Arial;
+  text-align:center;
+  padding:40px;
+}
+button {
+  padding:12px 20px;
+  border:none;
+  border-radius:10px;
+  margin:10px;
+  cursor:pointer;
+}
+.green {background:#22c55e;color:white;}
+.blue {background:#3b82f6;color:white;}
+</style>
+</head>
+
+<body>
+
+<h1>⚙️ MoiStremioTV</h1>
+
+<button class="green" onclick="update()">Actualizar catálogo</button>
+<button class="blue" onclick="openPanel()">Panel admin</button>
+
+<p id="msg"></p>
+
+<script>
+async function update(){
+  try{
+    await fetch('/api/admin/refresh-cache',{method:'POST'});
+    document.getElementById('msg').innerText='✅ Actualizado. Cierra y abre Stremio';
+  }catch{
+    document.getElementById('msg').innerText='❌ Error';
+  }
+}
+
+function openPanel(){
+  window.location.href='/admin';
+}
+</script>
+
+</body>
+</html>
+`);
 }
