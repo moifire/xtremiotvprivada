@@ -320,8 +320,8 @@ async function serveManifest(req, res, token) {
   return sendJson(res, 200, {
     id: 'com.moistremiotv.private.v5',
     version: `5.1.${Number(cacheInfo?.version || 1)}`,
-    name: 'MoiStremioTV Private Legal PRO v5',
-    description: 'Nota: después de instalar esta versión, elimina la versión anterior manualmente desde Complementos para evitar duplicados',
+    name: '⚠️ ACTUALIZA MoiStremioTV PRO v5',
+    description: '🚨 IMPORTANTE 🚨 Después de instalar esta versión, elimina la versión anterior manualmente desde Complementos para evitar duplicados.',
     logo: '',
     resources: ['catalog', 'meta', 'stream'],
     types: ['tv', 'movie', 'series'],
