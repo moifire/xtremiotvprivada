@@ -321,7 +321,7 @@ async function serveManifest(req, res, token) {
     id: 'com.moistremiotv.private.v5',
     version: `5.1.${Number(cacheInfo?.version || 1)}`,
     name: 'MoiStremioTV Private Legal PRO v5',
-    description: 'Catálogo privado con usuarios, caducidad, conexiones, QR y panel admin.',
+    description: 'Nota: después de instalar esta versión, elimina la versión anterior manualmente desde Complementos para evitar duplicados',
     logo: '',
     resources: ['catalog', 'meta', 'stream'],
     types: ['tv', 'movie', 'series'],
