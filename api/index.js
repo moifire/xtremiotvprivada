@@ -457,7 +457,8 @@ function normalizeCatalog(items) {
     streamTitle: String(item.streamTitle || ''),
     ytId: String(item.ytId || ''),
     releaseInfo: String(item.releaseInfo || ''),
-    runtime: String(item.runtime || '')
+    runtime: String(item.runtime || ''),
+    videos: Array.isArray(item.videos) ? item.videos : []
   }));
 }
 
@@ -465,40 +466,32 @@ function parseM3U(text) {
   const lines = String(text || '').split(/\r?\n/);
   const items = [];
   let current = null;
-
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
-
     if (line.startsWith('#EXTINF:')) {
-      const name = line.includes(',')
-        ? line.slice(line.indexOf(',') + 1).trim()
-        : `Canal ${items.length + 1}`;
+      const name = line.includes(',') ? line.slice(line.indexOf(',') + 1).trim() : `Canal ${items.length + 1}`;
       const category = extractM3UAttr(line, 'group-title') || 'General';
-
-      current = {
-        id: `xtv_${items.length + 1}`,
-        type: 'tv',
-        name,
-        poster: extractM3UAttr(line, 'tvg-logo') || '',
-        background: '',
-        description: category,
-        genres: [category],
-        category,
-        streamUrl: '',
-        streamTitle: ''
-      };
+      const poster = extractM3UAttr(line, 'tvg-logo') || '';
+      const serieMatch = name.match(/^(.*?)\s+S(\d+)\s+E(\d+)/i);
+      if (serieMatch) {
+        current = {id:`tmp_${items.length+1}`,type:'series',serieName:serieMatch[1].replace(/\[[^\]]+\]/g,'').trim(),season:parseInt(serieMatch[2],10),episode:parseInt(serieMatch[3],10),name,poster,category,streamUrl:''};
+      } else {
+        current = {id:`xtv_${items.length+1}`,type:'tv',name,poster,background:'',description:category,genres:[category],category,streamUrl:'',streamTitle:''};
+      }
       continue;
     }
-
-    if (!line.startsWith('#') && current) {
-      current.streamUrl = line;
-      items.push(current);
-      current = null;
-    }
+    if (!line.startsWith('#') && current) { current.streamUrl=line; items.push(current); current=null; }
   }
-
-  return normalizeCatalog(items);
+  const seriesMap=new Map(); const finalItems=[];
+  for (const item of items){
+    if(item.type!=='series'){finalItems.push(item);continue;}
+    const key=slug(item.serieName);
+    if(!seriesMap.has(key)){seriesMap.set(key,{id:key,type:'series',name:item.serieName,poster:item.poster,background:item.poster,description:item.serieName,genres:[item.category],category:item.category,videos:[]});}
+    seriesMap.get(key).videos.push({id:`${key}_s${item.season}e${item.episode}`,title:`Episodio ${item.episode}`,season:item.season,episode:item.episode,streamUrl:item.streamUrl});
+  }
+  for(const serie of seriesMap.values()){serie.videos.sort((a,b)=>a.season!==b.season?a.season-b.season:a.episode-b.episode);finalItems.push(serie);}
+  return normalizeCatalog(finalItems);
 }
 
 function extractM3UAttr(line, attr) {
