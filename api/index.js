@@ -386,33 +386,53 @@ async function serveMeta(req, res, endpoint) {
   return sendJson(res, 200, { meta: toMetaFull(item) });
 }
 
+
 async function serveStream(req, res, endpoint) {
   const match = endpoint.match(/^stream\/([^/]+)\/([^/.]+)\.json$/);
   if (!match) return sendJson(res, 404, { error: 'Ruta stream no válida' });
 
   const [, type, id] = match;
-  const item = (await getCatalog()).items.find(
+  const catalog = await getCatalog();
+
+  const item = catalog.items.find(
     (entry) => entry.id === id && (entry.type || 'tv') === type
   );
 
-  if (!item) return sendJson(res, 404, { error: 'Item no encontrado' });
-
-  const streams = [];
-  if (item.streamUrl) {
-    streams.push({
-      title: item.streamTitle || item.name,
-      url: item.streamUrl,
-      behaviorHints: { notWebReady: false }
-    });
+  if (item) {
+    const streams = [];
+    if (item.streamUrl) {
+      streams.push({
+        title: item.streamTitle || item.name,
+        url: item.streamUrl,
+        behaviorHints: { notWebReady: false }
+      });
+    }
+    if (item.ytId) {
+      streams.push({
+        title: item.name,
+        ytId: item.ytId
+      });
+    }
+    return sendJson(res, 200, { streams });
   }
-  if (item.ytId) {
-    streams.push({
-      title: item.name,
-      ytId: item.ytId
-    });
+
+  for (const serie of catalog.items) {
+    if (!Array.isArray(serie.videos)) continue;
+
+    const episode = serie.videos.find((v) => v.id === id);
+
+    if (episode) {
+      return sendJson(res, 200, {
+        streams: [{
+          title: episode.title,
+          url: episode.streamUrl,
+          behaviorHints: { notWebReady: false }
+        }]
+      });
+    }
   }
 
-  return sendJson(res, 200, { streams });
+  return sendJson(res, 404, { error: 'Item no encontrado' });
 }
 
 function toMetaPreview(item) {
