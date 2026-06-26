@@ -317,6 +317,20 @@ async function serveManifest(req, res, token) {
       }))
     : [{ type: 'tv', id: `all-v${cacheInfo.version}`, name: 'TV', extra: [{ name: 'search' }] }];
 
+
+  const seriesCategories = unique(
+    catalog.items
+      .filter((item) => (item.type || 'tv') === 'series')
+      .map((item) => item.category || 'General')
+  );
+
+  const seriesCatalogs = seriesCategories.map((category) => ({
+    type: 'series',
+    id: `series-${slug(category)}-v${cacheInfo.version}`,
+    name: `Series · ${category}`,
+    extra: [{ name: 'search' }]
+  }));
+
   return sendJson(res, 200, {
     id: 'com.moistremiotv.private.v5',
     version: `5.1.${Number(cacheInfo?.version || 1)}`,
@@ -328,7 +342,7 @@ async function serveManifest(req, res, token) {
     catalogs: [
       ...tvCatalogs,
       { type: 'movie', id: `movies-v${cacheInfo.version}`, name: 'Películas', extra: [{ name: 'search' }] },
-      { type: 'series', id: `series-v${cacheInfo.version}`, name: 'Series', extra: [{ name: 'search' }] }
+      ...seriesCatalogs
     ],
     behaviorHints: {
       configurable: true,
@@ -363,7 +377,17 @@ async function serveCatalog(req, res, endpoint) {
   }
 
   if (type === 'movie' && cleanCatalogId !== 'movies') items = [];
-  if (type === 'series' && cleanCatalogId !== 'series') items = [];
+
+  if (type === 'series') {
+    if (!cleanCatalogId.startsWith('series-')) {
+      items = [];
+    } else {
+      const wanted = cleanCatalogId.replace(/^series-/, '');
+      items = items.filter(
+        (item) => slug(item.category || 'general') === wanted
+      );
+    }
+  }
   if (search) {
     items = items.filter((item) =>
       `${item.name} ${item.description || ''} ${item.category || ''}`.toLowerCase().includes(search)
