@@ -9,6 +9,8 @@ const UPSTASH_URL = String(process.env.UPSTASH_REDIS_REST_URL || '').trim().repl
 const UPSTASH_TOKEN = String(process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
 
 const CATALOG_KEY = String(process.env.CATALOG_KEY || 'xtremio:catalog');
+const MAX_CHUNK_BYTES = 7 * 1024 * 1024;
+const CATALOG_META_KEY = `${CATALOG_KEY}:meta`;
 const USERS_KEY = String(process.env.USERS_KEY || 'xtremio:users');
 const CACHE_INFO_KEY = String(process.env.CACHE_INFO_KEY || 'xtremio:cache-info');
 
@@ -597,16 +599,228 @@ async function saveUsers(users) {
 }
 
 async function getCatalog() {
-  const stored = await loadJson(CATALOG_KEY, { items: [] }, FALLBACK_CATALOG);
-  return { items: normalizeCatalog(Array.isArray(stored.items) ? stored.items : []) };
+
+  if (!hasRedis()) {
+    const stored = await loadJson(
+      CATALOG_KEY,
+      { items: [] },
+      FALLBACK_CATALOG
+    );
+
+    return {
+      items: normalizeCatalog(
+        Array.isArray(stored.items)
+          ? stored.items
+          : []
+      )
+    };
+  }
+
+  const metaRaw = await redisGet(CATALOG_META_KEY);
+
+  if (!metaRaw) {
+    const old = await redisGet(CATALOG_KEY);
+
+    if (!old)
+      return { items: [] };
+
+    const parsed = safeJson(old, { items: [] });
+
+    return {
+      items: normalizeCatalog(parsed.items || [])
+    };
+  }
+
+  const meta = safeJson(metaRaw, {
+    chunks: 0
+  });
+
+  let items = [];
+
+  for (let i = 0; i < meta.chunks; i++) {
+
+    const raw = await redisGet(
+      `${CATALOG_KEY}:${i}`
+    );
+
+    if (!raw)
+      continue;
+
+    const part = safeJson(raw, {
+      items: []
+    });
+
+    items.push(
+      ...(
+        Array.isArray(part.items)
+          ? part.items
+          : []
+      )
+    );
+
+  }
+
+  return {
+    items: normalizeCatalog(items)
+  };
+
 }
 
 async function saveCatalog(catalog) {
-  await saveJson(
-    CATALOG_KEY,
-    { items: normalizeCatalog(Array.isArray(catalog.items) ? catalog.items : []) },
-    FALLBACK_CATALOG
-  );
+
+    const items = normalizeCatalog(
+        Array.isArray(catalog.items)
+            ? catalog.items
+            : []
+    );
+
+    // Sin Redis seguimos usando archivos
+    if (!hasRedis()) {
+
+        await saveJson(
+            CATALOG_KEY,
+            { items },
+            FALLBACK_CATALOG
+        );
+
+        return;
+
+    }
+
+    // ==========================================
+    // BORRAR BLOQUES ANTIGUOS
+    // ==========================================
+
+    try {
+
+        const metaRaw = await redisGet(
+            CATALOG_META_KEY
+        );
+
+        if (metaRaw) {
+
+            const meta = safeJson(
+                metaRaw,
+                { chunks: 0 }
+            );
+
+            for (
+                let i = 0;
+                i < meta.chunks;
+                i++
+            ) {
+
+                await redisCommand([
+                    "DEL",
+                    `${CATALOG_KEY}:${i}`
+                ]);
+
+            }
+
+        }
+
+    } catch (e) {
+
+        console.log(
+            "No había bloques anteriores."
+        );
+
+    }
+
+    await redisCommand([
+        "DEL",
+        CATALOG_KEY
+    ]);
+
+    await redisCommand([
+        "DEL",
+        CATALOG_META_KEY
+    ]);
+
+    // ==========================================
+    // CREAR BLOQUES POR TAMAÑO
+    // ==========================================
+
+    let bloques = [];
+
+    let bloqueActual = [];
+
+    let bytesActual = 0;
+    for (const item of items) {
+
+        const texto = JSON.stringify(item);
+
+        const bytes = Buffer.byteLength(
+            texto,
+            "utf8"
+        );
+if (bytes > MAX_CHUNK_BYTES) {
+    throw new Error(
+        `El elemento ${item.id || "(sin id)"} supera el tamaño máximo permitido para un bloque.`
+    );
+}
+
+        if (
+            bytesActual + bytes > MAX_CHUNK_BYTES &&
+            bloqueActual.length
+        ) {
+
+            bloques.push(bloqueActual);
+
+            bloqueActual = [];
+
+            bytesActual = 0;
+
+        }
+
+        bloqueActual.push(item);
+
+        bytesActual += bytes;
+
+    }
+
+    if (bloqueActual.length) {
+
+        bloques.push(
+            bloqueActual
+        );
+
+    }
+
+    let chunk = 0;
+
+    for (const bloque of bloques) {
+
+        await redisSet(
+
+            `${CATALOG_KEY}:${chunk}`,
+
+            JSON.stringify({
+                items: bloque
+            })
+
+        );
+
+        chunk++;
+
+    }
+
+    await redisSet(
+
+        CATALOG_META_KEY,
+
+        JSON.stringify({
+
+            chunks: chunk,
+
+            total: items.length,
+
+            updatedAt: new Date().toISOString()
+
+        })
+
+    );
+
 }
 
 async function getCacheInfo() {
@@ -631,19 +845,42 @@ async function bumpCacheVersion() {
 }
 
 async function loadJson(key, fallback, filePath) {
-  if (hasRedis()) {
+
+  // El catálogo ya no utiliza loadJson cuando Redis está activo.
+  // Lo gestionan getCatalog() y saveCatalog() mediante bloques.
+
+  if (hasRedis() && key !== CATALOG_KEY) {
+
     const raw = await redisGet(key);
-    if (raw) return safeJson(raw, fallback);
+
+    if (raw)
+      return safeJson(raw, fallback);
+
   }
 
   try {
-    const file = await fs.readFile(filePath, 'utf8');
+
+    const file = await fs.readFile(filePath, "utf8");
+
     const parsed = safeJson(file, fallback);
-    if (hasRedis()) await redisSet(key, JSON.stringify(parsed));
+
+    if (hasRedis() && key !== CATALOG_KEY) {
+
+      await redisSet(
+        key,
+        JSON.stringify(parsed)
+      );
+
+    }
+
     return parsed;
+
   } catch {
+
     return fallback;
+
   }
+
 }
 
 async function saveJson(key, value, filePath) {
